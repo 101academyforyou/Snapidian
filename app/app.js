@@ -315,18 +315,36 @@
       document.head.append(s);
     });
   }
+  // Tesseract reports some failures (e.g. its language data not downloading) only through errorHandler,
+  // leaving the pending promise unsettled; ocrFail lets that error, or a time limit, end the current job.
+  let ocrFail = null;
+  const OCR_LIMIT_MS = 120000;
   async function getWorker() {
     if (workerP && workerLang === S.ocrLang) return workerP;
-    if (workerP) (await workerP).terminate();
+    if (workerP) workerP.then(w => w.terminate(), () => {});
     workerLang = S.ocrLang;
     workerP = (async () => {
       if (!window.Tesseract) await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
       return Tesseract.createWorker(S.ocrLang.split('+'), 1, {
-        logger: m => { if (m.status === 'recognizing text' && ocrProgress) ocrProgress(m.progress); }
+        logger: m => { if (m.status === 'recognizing text' && ocrProgress) ocrProgress(m.progress); },
+        errorHandler: e => { if (ocrFail) ocrFail(e instanceof Error ? e : new Error(String(e))); }
       });
     })();
     workerP.catch(() => { workerP = null; });
     return workerP;
+  }
+  function resetWorker() {
+    if (workerP) workerP.then(w => w.terminate(), () => {});
+    workerP = null;
+  }
+  // Run one recognition step, failing on a worker error or after OCR_LIMIT_MS instead of hanging.
+  function guarded(promise) {
+    let timer;
+    const failed = new Promise((_, reject) => {
+      ocrFail = reject;
+      timer = setTimeout(() => reject(new Error('text recognition timed out')), OCR_LIMIT_MS);
+    });
+    return Promise.race([promise, failed]).finally(() => { clearTimeout(timer); ocrFail = null; });
   }
   // Text recognition runs by itself, one screenshot at a time, right after screenshots are added.
   // Progress is tracked per capture because render() rebuilds the cards.
@@ -358,8 +376,8 @@
     ocrBusy.set(c.id, 0); paintOcr(c.id);
     ocrProgress = p => { ocrBusy.set(c.id, p); paintOcr(c.id); };
     try {
-      const w = await getWorker();
-      const { data } = await w.recognize(c.blob);
+      const w = await guarded(getWorker());
+      const { data } = await guarded(w.recognize(c.blob));
       // Tesseract inserts spaces between CJK characters — remove them
       const text = data.text.replace(/([　-鿿＀-￯])\s+(?=[　-鿿＀-￯])/g, '$1').trim();
       if (!c.ocr.trim()) c.ocr = text; // never overwrite text the user (or AI) already filled in
@@ -368,6 +386,7 @@
       return true;
     } catch (e) {
       console.error(e);
+      resetWorker(); // a broken or stuck worker would fail every later job too
       c.ocrState = 'failed';
       await SnapDB.put(c).catch(() => {});
       return false;
