@@ -4,7 +4,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-6';
+  const APP_VERSION = '2026.11.25-7';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -54,21 +54,29 @@
     toast._t = setTimeout(() => el.classList.remove('show'), action ? 6000 : 2600);
   }
 
+  // File names follow when the screenshot was taken, when that is known.
   function names(c) {
-    const d = new Date(c.createdAt);
+    const d = new Date(c.takenAt || c.createdAt);
     const base = `${S.prefix}${stamp(d)}`;
     const img = `${base}.${extOf(c.type)}`;
     const note = (c.title.trim() ? safeName(c.title) : base) + '.md';
     return { img, note, imgPath: joinPath(S.attach, img), notePath: joinPath(S.notes, note) };
   }
 
-  function buildMarkdown(c, imgPath) {
+  const fmtTime = ms => new Date(ms).toLocaleString(I18N.lang === 'zh' ? 'zh-TW' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' });
+
+  /** imgPath: vault path for an ![[embed]]; or pass { dataUri } to put the image inside the note itself. */
+  function buildMarkdown(c, imgPath, { dataUri } = {}) {
     const d = new Date(c.createdAt);
     const tags = parseTags(S.tags + ' ' + c.tags);
-    const title = c.title.trim() || `${t('app.untitled')} ${d.toLocaleString(I18N.lang === 'zh' ? 'zh-TW' : 'en-US')}`;
-    const lines = ['---', `created: ${isoLocal(d)}`, 'source: Snapidian'];
+    const title = c.title.trim() || `${t('app.untitled')} ${fmtTime(c.takenAt || c.createdAt)}`;
+    const lines = ['---'];
+    if (c.takenAt) lines.push(`taken: ${isoLocal(new Date(c.takenAt))}`);
+    lines.push(`created: ${isoLocal(d)}`, 'source: Snapidian');
     if (tags.length) { lines.push('tags:'); tags.forEach(x => lines.push(`  - ${x}`)); }
-    lines.push('---', '', `# ${title}`, '', `![[${imgPath}]]`, '');
+    const embed = dataUri ? `![${title.replace(/[\[\]]/g, '')}](${dataUri})` : `![[${imgPath}]]`;
+    lines.push('---', '', `# ${title}`, '', embed, '');
+    lines.push(`> ${c.takenAt ? t('md.taken', { d: fmtTime(c.takenAt) }) : t('md.added', { d: fmtTime(c.createdAt) })}`, '');
     if ((c.summary || '').trim()) lines.push(`## ${t('md.summary')}`, c.summary.trim(), '');
     if (c.note.trim()) lines.push(`## ${t('md.note')}`, c.note.trim(), '');
     if (S.incOcr && c.ocr.trim()) lines.push(`## ${t('md.ocr')}`, ...c.ocr.trim().split('\n').map(l => '> ' + l), '');
@@ -79,6 +87,14 @@
   async function load() {
     caps = await SnapDB.all();
     render();
+    // Screenshots added before capture times were recorded, or shared in by the service worker, get theirs now.
+    const missing = caps.filter(c => c.takenAt === undefined);
+    for (const c of missing) {
+      const m = await SnapMeta.takenAt(c.blob);
+      c.takenAt = m ? m.at : null; c.takenSource = m ? m.source : null;
+      await SnapDB.put(c);
+    }
+    if (missing.length) render();
   }
 
   async function addFiles(files, sharedMsg) {
@@ -87,6 +103,8 @@
     const ids = [];
     for (const f of imgs) {
       const c = SnapDB.newCapture(f, f.name);
+      const m = await SnapMeta.takenAt(f);
+      c.takenAt = m ? m.at : null; c.takenSource = m ? m.source : null;
       ids.push(c.id);
       await SnapDB.put(c);
     }
@@ -120,6 +138,7 @@
       el.classList.toggle('saved', c.saved);
       el.querySelector('img').src = urlFor(c);
       el.querySelector('.status').textContent = t(c.saved ? 'app.status.saved' : 'app.status.pending');
+      el.querySelector('.taken').textContent = c.takenAt ? t('app.taken', { d: fmtTime(c.takenAt) }) : t('app.addedAt', { d: fmtTime(c.createdAt) });
       const bind = (sel, key) => {
         const input = el.querySelector(sel);
         input.value = c[key] ?? '';
@@ -408,10 +427,9 @@
     } else if (e.target.closest('.a-ocr')) {
       runOcr(c);
     } else if (e.target.closest('.a-md')) {
-      const n = names(c);
-      downloadFile(new Blob([buildMarkdown(c, n.img)], { type: 'text/markdown' }), n.note);
-      // the note embeds the image by name, so hand over the image too
-      setTimeout(() => downloadFile(c.blob, n.img), 300);
+      // One self-contained file: the image is stored inside the note as a data URI.
+      const dataUri = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(c.blob); });
+      downloadFile(new Blob([buildMarkdown(c, null, { dataUri })], { type: 'text/markdown' }), names(c).note);
       toast(t('app.mdDownloaded'));
     } else if (e.target.closest('.a-copy')) {
       try { await navigator.clipboard.writeText(buildMarkdown(c, names(c).imgPath)); toast(t('app.copied')); }

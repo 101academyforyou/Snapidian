@@ -54,7 +54,10 @@
 
   <template id="cardTpl">
     <article class="cap">
-      <div class="thumb"><img alt=""><span class="status"></span></div>
+      <div class="thumb-col">
+        <div class="thumb"><img alt=""><span class="status"></span></div>
+        <small class="taken"></small>
+      </div>
       <div class="fields">
         <input class="f-title" data-i18n-placeholder="app.field.title">
         <textarea class="f-note" rows="2" data-i18n-placeholder="app.field.note"></textarea>
@@ -157,6 +160,7 @@
   <script src="../assets/i18n.js"></script>
   <script src="db.js"></script>
   <script src="zip.js"></script>
+  <script src="meta.js"></script>
   <script src="ai.js"></script>
   <script src="app.js"></script>
 </body>

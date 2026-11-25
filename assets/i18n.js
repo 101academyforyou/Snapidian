@@ -92,7 +92,9 @@
       'app.save': '存入 Obsidian',
       'app.copy': '複製 Markdown',
       'app.downloadMd': '下載 .md',
-      'app.mdDownloaded': '已下載筆記（.md）與圖片，請放進同一個 Vault',
+      'app.mdDownloaded': '已下載 Markdown 筆記，圖片已存在檔案裡',
+      'app.taken': '截圖時間 {d}',
+      'app.addedAt': '加入時間 {d}',
       'app.notVaultRoot': '「{n}」不是 Obsidian Vault 的最上層資料夾（裡面沒有 .obsidian）。筆記仍可寫入，但無法用連結直接在 Obsidian 開啟。建議改選 Vault 本身的資料夾。',
       'app.notVaultRootShort': '（連結的資料夾不是 Vault 最上層，無法直接開啟，請到設定改選 Vault 本身的資料夾）',
       'app.delete': '刪除',
@@ -138,6 +140,8 @@
 
       'md.note': '筆記',
       'md.summary': 'AI 摘要',
+      'md.taken': '截圖時間：{d}',
+      'md.added': '加入時間：{d}（截圖沒有記錄拍攝時間）',
       'md.ocr': '辨識文字',
 
       // ---------- iPhone guide ----------
@@ -335,7 +339,9 @@
       'app.save': 'Save to Obsidian',
       'app.copy': 'Copy Markdown',
       'app.downloadMd': 'Download .md',
-      'app.mdDownloaded': 'Downloaded the note (.md) and its image — put both in the same vault',
+      'app.mdDownloaded': 'Downloaded the Markdown note, with the image stored inside it',
+      'app.taken': 'Taken {d}',
+      'app.addedAt': 'Added {d}',
       'app.notVaultRoot': '“{n}” is not the top-level folder of an Obsidian vault (no .obsidian inside). Notes can still be written, but can’t be opened in Obsidian from a link. Pick the vault folder itself instead.',
       'app.notVaultRootShort': '(the connected folder isn’t the vault’s top level, so it can’t be opened directly — pick the vault folder itself in Settings)',
       'app.delete': 'Delete',
@@ -381,6 +387,8 @@
 
       'md.note': 'Notes',
       'md.summary': 'AI summary',
+      'md.taken': 'Screenshot taken: {d}',
+      'md.added': 'Added: {d} (the screenshot has no capture time)',
       'md.ocr': 'Recognized text',
 
       'nav.iphone': 'iPhone one-tap',
