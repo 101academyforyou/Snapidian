@@ -23,7 +23,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-20';
+  const APP_VERSION = '2026.11.25-21';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -661,6 +661,12 @@
     else askToSetUp(p);
   });
   $('#aiAllBtn').addEventListener('click', () => aiMany(caps.filter(c => !c.saved && !(c.summary || '').trim())));
+  $('#clearAllBtn').addEventListener('click', async () => {
+    if (!caps.length || !confirm(t('app.confirmClearAll', { n: caps.length }))) return;
+    for (const c of caps) await SnapDB.del(c.id);
+    await load();
+    toast(t('app.clearedAll'));
+  });
   $('#clearDoneBtn').addEventListener('click', async () => {
     for (const c of caps.filter(c => c.saved)) await SnapDB.del(c.id);
     await load();
