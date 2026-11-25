@@ -23,7 +23,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-25';
+  const APP_VERSION = '2026.11.25-26';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -63,6 +63,8 @@
   // On-device AI: Chrome's built-in AI in the browser, Apple Intelligence in the iOS app.
   const NATIVE = !!(window.SnapNative && SnapNative.isNative);
   const LOCAL_AI = NATIVE ? 'apple' : 'chrome';
+  // Anonymous user count for the homepage (website only; the iPhone app sends nothing).
+  if (!NATIVE && window.SnapStats) SnapStats.countOnce();
   let appleState = 'unsupported';
   if (NATIVE) {
     if (S.aiProvider === 'chrome') S.aiProvider = 'apple';
