@@ -23,13 +23,13 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-17';
+  const APP_VERSION = '2026.11.25-18';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
     method: 'auto', vault: '', notes: 'Snapidian', attach: 'Snapidian/attachments',
     prefix: 'Snap-', tags: 'snapidian', incOcr: true, ocrLang: 'chi_tra+eng',
-    aiProvider: 'chrome', models: {}, customBaseUrl: '', aiAuto: false, settingsVersion: 2
+    aiProvider: 'chrome', models: {}, customBaseUrl: '', aiAuto: false, settingsVersion: 3
   };
   const SKEY = 'snapidian.settings';
   let S = { ...DEFAULTS };
@@ -60,12 +60,26 @@
   if (S.claudeModel && !S.models.claude) S.models.claude = S.claudeModel;
   delete S.claudeModel;
   const modelFor = p => (S.models[p] || (SnapAI.PROVIDERS[p] && SnapAI.PROVIDERS[p].model) || '').trim();
-  function aiReady() {
-    const p = S.aiProvider;
+  function providerReady(p) {
     if (p === 'chrome') return SnapAI.hasChrome();
     if (p === 'custom') return !!(S.customBaseUrl && modelFor('custom'));
     if (SnapAI.PROVIDERS[p]) return !!getKey(p) && !!modelFor(p);
     return false;
+  }
+  // Chrome's built-in AI is the default: a chosen service that isn't set up yet (no key or model) falls back to
+  // it rather than stopping. Only "off" turns AI organize off.
+  function effectiveProvider() {
+    if (providerReady(S.aiProvider)) return S.aiProvider;
+    if (S.aiProvider !== 'off' && SnapAI.hasChrome()) return 'chrome';
+    return null;
+  }
+  const aiReady = () => !!effectiveProvider();
+
+  // Version 3: everyone defaults to Chrome's built-in AI; keep another choice only if it is set up to run.
+  if (Object.keys(saved).length && !(saved.settingsVersion >= 3)) {
+    if (S.aiProvider === 'off' || (S.aiProvider !== 'chrome' && !providerReady(S.aiProvider))) S.aiProvider = 'chrome';
+    S.settingsVersion = 3;
+    try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch (e) {}
   }
 
   const hasFS = 'showDirectoryPicker' in window;
@@ -520,8 +534,9 @@
     if (btn) btn.disabled = true;
     setLabel(t('app.ai.running'));
     try {
-      const r = await SnapAI.organize(S.aiProvider, {
-        blob: c.blob, ocr: c.ocr, lang: I18N.lang, apiKey: getKey(), model: modelFor(S.aiProvider), baseUrl: S.customBaseUrl,
+      const prov = effectiveProvider();
+      const r = await SnapAI.organize(prov, {
+        blob: c.blob, ocr: c.ocr, lang: I18N.lang, apiKey: getKey(prov), model: modelFor(prov), baseUrl: S.customBaseUrl,
         // Once the model is downloaded, go back to "organizing…" for the rest of the run.
         onProgress: p => setLabel(p >= 1 ? t('app.ai.running') : t('app.ai.download', { p: Math.round(p * 100) }))
       });
@@ -651,7 +666,7 @@
   $('#autoAi').addEventListener('change', async e => {
     S.aiAuto = e.target.checked;
     saveSettings();
-    if (!S.aiAuto || S.aiProvider !== 'chrome') return;
+    if (!S.aiAuto || effectiveProvider() !== 'chrome') return;
     // This click is the user gesture Chrome needs to start downloading its model, so start it now.
     try {
       const state = await SnapAI.warmUp(I18N.lang, p => toast(t('app.ai.download', { p: Math.round(p * 100) })));
