@@ -4,13 +4,13 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-7';
+  const APP_VERSION = '2026.11.25-8';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
     method: 'auto', vault: '', notes: 'Snapidian', attach: 'Snapidian/attachments',
     prefix: 'Snap-', tags: 'snapidian', incOcr: true, ocrLang: 'chi_tra+eng',
-    aiProvider: 'off', claudeModel: 'claude-opus-5-5', aiAuto: false, autoOcr: true
+    aiProvider: 'off', claudeModel: 'claude-opus-5-5', aiAuto: false
   };
   const SKEY = 'snapidian.settings';
   let S = { ...DEFAULTS };
@@ -95,6 +95,8 @@
       await SnapDB.put(c);
     }
     if (missing.length) render();
+    // Screenshots that were never recognized (added before this was automatic, or shared in) get recognized now.
+    for (const c of caps) if (!c.ocrState && !c.ocr.trim()) queueOcr(c);
   }
 
   async function addFiles(files, sharedMsg) {
@@ -112,8 +114,9 @@
     toast(t(sharedMsg ? 'app.shared' : 'app.added', { n: imgs.length }));
     const added = () => caps.filter(c => ids.includes(c.id));
     // Recognize text first, so AI organize (if on) can use it too.
-    if (S.autoOcr) for (const c of added()) await runOcr(c, { quiet: true });
-    if (S.aiAuto && aiReady()) await aiMany(added());
+    const jobs = added().map(queueOcr);
+    // AI organize (if on) waits for the text so it can use it too.
+    if (S.aiAuto && aiReady()) { await Promise.all(jobs); await aiMany(added()); }
   }
 
   const persist = (() => {
@@ -147,7 +150,7 @@
       bind('.f-title', 'title'); bind('.f-note', 'note'); bind('.f-tags', 'tags'); bind('.f-ocr', 'ocr'); bind('.f-summary', 'summary');
       el.querySelector('.sum-box').hidden = !(c.summary || '').trim();
       el.querySelector('.a-ai').hidden = S.aiProvider === 'off';
-      if (ocrBusy.has(c.id)) queueMicrotask(() => paintOcr(c.id));
+      queueMicrotask(() => paintOcr(c.id));
       if (c.ocr) el.querySelector('.ocr-box').open = true;
       return el;
     }));
@@ -325,35 +328,53 @@
     workerP.catch(() => { workerP = null; });
     return workerP;
   }
-  // Recognition can outlive the card's DOM (render() rebuilds the list), so progress is tracked per capture.
-  const ocrBusy = new Map(); // id -> progress 0..1
-  const ocrBtn = id => document.querySelector(`.cap[data-id="${id}"] .a-ocr`);
+  // Text recognition runs by itself, one screenshot at a time, right after screenshots are added.
+  // Progress is tracked per capture because render() rebuilds the cards.
+  const ocrBusy = new Map();    // id -> progress 0..1 while recognizing
+  const ocrWaiting = new Map(); // id -> promise for queued or running captures
+  let ocrChain = Promise.resolve();
   function paintOcr(id) {
-    const btn = ocrBtn(id);
-    if (!btn) return;
-    const busy = ocrBusy.has(id);
-    btn.disabled = busy;
-    btn.textContent = busy ? t('app.ocr.running', { p: Math.round(ocrBusy.get(id) * 100) }) : t('app.ocr');
+    const el = document.querySelector(`.cap[data-id="${id}"] .ocr-status`);
+    if (!el) return;
+    const c = caps.find(x => x.id === id);
+    el.replaceChildren();
+    if (ocrBusy.has(id)) el.textContent = t('app.ocr.running', { p: Math.round(ocrBusy.get(id) * 100) });
+    else if (ocrWaiting.has(id)) el.textContent = t('app.ocr.queued');
+    else if (c && c.ocrState === 'failed') {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'link-btn a-ocr-retry'; b.textContent = t('app.ocr.retry');
+      el.append(t('app.ocr.failedShort') + ' ', b);
+    }
   }
-  async function runOcr(c, { quiet = false } = {}) {
-    if (ocrBusy.has(c.id)) return false;
+  function queueOcr(c) {
+    if (ocrWaiting.has(c.id)) return ocrWaiting.get(c.id);
+    const job = ocrChain.then(() => recognize(c));
+    ocrChain = job.catch(() => {});
+    ocrWaiting.set(c.id, job);
+    paintOcr(c.id);
+    return job;
+  }
+  async function recognize(c) {
     ocrBusy.set(c.id, 0); paintOcr(c.id);
     ocrProgress = p => { ocrBusy.set(c.id, p); paintOcr(c.id); };
     try {
       const w = await getWorker();
       const { data } = await w.recognize(c.blob);
       // Tesseract inserts spaces between CJK characters — remove them
-      c.ocr = data.text.replace(/([　-鿿＀-￯])\s+(?=[　-鿿＀-￯])/g, '$1').trim();
+      const text = data.text.replace(/([　-鿿＀-￯])\s+(?=[　-鿿＀-￯])/g, '$1').trim();
+      if (!c.ocr.trim()) c.ocr = text; // never overwrite text the user (or AI) already filled in
+      c.ocrState = 'done';
       await SnapDB.put(c);
-      if (!quiet) toast(t('app.ocr.done'));
       return true;
     } catch (e) {
       console.error(e);
-      toast(t('app.ocr.fail'));
+      c.ocrState = 'failed';
+      await SnapDB.put(c).catch(() => {});
       return false;
     } finally {
       ocrProgress = null;
       ocrBusy.delete(c.id);
+      ocrWaiting.delete(c.id);
       render();
     }
   }
@@ -424,16 +445,14 @@
       try { await save([c]); } catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
     } else if (e.target.closest('.a-ai')) {
       if (await runAi(c, e.target.closest('.a-ai'))) { render(); toast(t('app.ai.done')); }
-    } else if (e.target.closest('.a-ocr')) {
-      runOcr(c);
+    } else if (e.target.closest('.a-ocr-retry')) {
+      e.preventDefault(); // the retry link sits inside <summary>; don't toggle the box
+      c.ocrState = undefined; queueOcr(c);
     } else if (e.target.closest('.a-md')) {
       // One self-contained file: the image is stored inside the note as a data URI.
       const dataUri = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(c.blob); });
       downloadFile(new Blob([buildMarkdown(c, null, { dataUri })], { type: 'text/markdown' }), names(c).note);
       toast(t('app.mdDownloaded'));
-    } else if (e.target.closest('.a-copy')) {
-      try { await navigator.clipboard.writeText(buildMarkdown(c, names(c).imgPath)); toast(t('app.copied')); }
-      catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
     } else if (e.target.closest('.a-del')) {
       if (!confirm(t('app.confirmDelete'))) return;
       await SnapDB.del(c.id); await load();
@@ -483,7 +502,6 @@
     fields.forEach(k => { $('#s-' + k).value = S[k]; });
     $('#s-incOcr').checked = S.incOcr;
     $('#s-aiAuto').checked = S.aiAuto;
-    $('#s-autoOcr').checked = S.autoOcr;
     $('#s-claudeKey').value = getKey();
     $('#s-lang').value = I18N.lang;
     updateAiUi();
@@ -499,7 +517,6 @@
     S.notes = cleanFolder(S.notes); S.attach = cleanFolder(S.attach);
     S.incOcr = $('#s-incOcr').checked;
     S.aiAuto = $('#s-aiAuto').checked;
-    S.autoOcr = $('#s-autoOcr').checked;
     setKey($('#s-claudeKey').value.trim());
     saveSettings();
     render();

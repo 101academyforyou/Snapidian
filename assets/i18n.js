@@ -86,12 +86,15 @@
       'app.field.tags': '標籤（以空白或逗號分隔）',
       'app.field.ocr': '截圖裡的文字',
       'app.ocr': '辨識文字',
-      'app.ocr.running': '辨識中… {p}%',
+      'app.ocr.running': '（辨識中… {p}%）',
       'app.ocr.done': '文字辨識完成',
+      'app.ocr.queued': '（等待辨識）',
+      'app.ocr.failedShort': '（辨識失敗）',
+      'app.ocr.retry': '重試',
       'app.ocr.fail': '文字辨識失敗，請檢查網路後再試',
       'app.save': '存入 Obsidian',
       'app.copy': '複製 Markdown',
-      'app.downloadMd': '下載 .md',
+      'app.downloadMd': '下載 Markdown',
       'app.mdDownloaded': '已下載 Markdown 筆記，圖片已存在檔案裡',
       'app.taken': '截圖時間 {d}',
       'app.addedAt': '加入時間 {d}',
@@ -231,7 +234,7 @@
       'app.ai.err.api': 'AI 發生錯誤：{e}',
       'app.ai.err.chrome_unsupported': '這個瀏覽器沒有內建 AI，請改用桌面版 Chrome 或 Claude',
       'app.ai.err.chrome_unavailable': '這台裝置無法使用 Chrome 內建 AI（硬體或設定不支援）',
-      'app.ai.err.chrome_need_ocr': 'Chrome 內建 AI 在這台裝置看不懂圖片，請先按「辨識文字」',
+      'app.ai.err.chrome_need_ocr': 'Chrome 內建 AI 在這台裝置看不懂圖片，請等截圖裡的文字辨識完成後再試',
       'app.ai.err.off': '請先到設定選擇 AI 服務',
 
       'set.ai': 'AI 整理',
@@ -333,12 +336,15 @@
       'app.field.tags': 'Tags (space or comma separated)',
       'app.field.ocr': 'Text in screenshot',
       'app.ocr': 'Recognize text',
-      'app.ocr.running': 'Recognizing… {p}%',
+      'app.ocr.running': '(recognizing… {p}%)',
       'app.ocr.done': 'Text recognized',
+      'app.ocr.queued': '(waiting)',
+      'app.ocr.failedShort': '(recognition failed)',
+      'app.ocr.retry': 'Retry',
       'app.ocr.fail': 'Text recognition failed — check your connection and try again',
       'app.save': 'Save to Obsidian',
       'app.copy': 'Copy Markdown',
-      'app.downloadMd': 'Download .md',
+      'app.downloadMd': 'Download Markdown',
       'app.mdDownloaded': 'Downloaded the Markdown note, with the image stored inside it',
       'app.taken': 'Taken {d}',
       'app.addedAt': 'Added {d}',
@@ -476,7 +482,7 @@
       'app.ai.err.api': 'AI error: {e}',
       'app.ai.err.chrome_unsupported': 'This browser has no built-in AI — use desktop Chrome or Claude',
       'app.ai.err.chrome_unavailable': 'Chrome built-in AI is not available on this device',
-      'app.ai.err.chrome_need_ocr': 'Chrome built-in AI cannot read images on this device — tap “Recognize text” first',
+      'app.ai.err.chrome_need_ocr': 'Chrome built-in AI can’t read images on this device — wait for the screenshot’s text to be recognized, then try again',
       'app.ai.err.off': 'Choose an AI service in Settings first',
 
       'set.ai': 'AI organize',
@@ -519,7 +525,9 @@
   function apply(root) {
     root = root || document;
     document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : 'en';
-    root.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+    // A key missing from the dictionary (e.g. an older cached copy of this file) keeps the element's built-in text.
+    const has = k => (DICT[lang] && k in DICT[lang]) || k in DICT.en;
+    root.querySelectorAll('[data-i18n]').forEach(el => { if (has(el.dataset.i18n)) el.textContent = t(el.dataset.i18n); });
     root.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
     root.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); el.setAttribute('aria-label', el.title); });
     const titleKey = document.documentElement.dataset.titleKey;
