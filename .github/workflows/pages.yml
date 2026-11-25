@@ -1,0 +1,56 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check JavaScript syntax
+        run: for f in sw.js assets/*.js app/*.js; do node --check "$f"; done
+      - name: Check manifest JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8'))"
+      - name: Check every file the service worker caches exists
+        run: |
+          node -e "
+            const fs = require('fs');
+            const src = fs.readFileSync('sw.js', 'utf8');
+            const list = JSON.parse(src.match(/const SHELL = (\[[\s\S]*?\]);/)[1].replace(/'/g, '\"'));
+            const missing = list.filter(p => !fs.existsSync(p.endsWith('/') ? p + 'index.html' : (p === './' ? 'index.html' : p)));
+            if (missing.length) { console.error('Missing:', missing); process.exit(1); }
+            console.log('All', list.length, 'cached files exist');
+          "
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4
