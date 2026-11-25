@@ -1,10 +1,29 @@
 /* Snapidian App */
 (() => {
+  // A translation file older than this script (a cached copy) lacks newer strings. Reload once to get
+  // matching files; the sessionStorage flag keeps this from ever looping.
+  if (I18N.t('app.ocr.retry') === 'app.ocr.retry') {
+    try {
+      if (!sessionStorage.getItem('snapidian.i18nReload')) {
+        sessionStorage.setItem('snapidian.i18nReload', '1');
+        location.reload();
+        return;
+      }
+    } catch (e) { /* storage blocked: carry on with what we have */ }
+  }
   const { t } = I18N;
+  // Translate, but if the translation file is an older cached copy that lacks a key, keep the
+  // element's built-in text rather than showing the raw key (e.g. "app.downloadMd").
+  function applyI18n(root) {
+    const before = new Map();
+    (root || document).querySelectorAll('[data-i18n]').forEach(el => before.set(el, el.textContent));
+    I18N.apply(root);
+    before.forEach((text, el) => { if (el.textContent === el.dataset.i18n && text.trim()) el.textContent = text; });
+  }
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-8';
+  const APP_VERSION = '2026.11.25-9';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -136,7 +155,7 @@
 
     list.replaceChildren(...caps.map(c => {
       const el = tpl.content.firstElementChild.cloneNode(true);
-      I18N.apply(el);
+      applyI18n(el);
       el.dataset.id = c.id;
       el.classList.toggle('saved', c.saved);
       el.querySelector('img').src = urlFor(c);
@@ -471,6 +490,7 @@
       // One self-contained file: the image is stored inside the note as a data URI.
       const dataUri = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(c.blob); });
       downloadFile(new Blob([buildMarkdown(c, null, { dataUri })], { type: 'text/markdown' }), names(c).note);
+      await markSaved(c); render(); // count it as done, like saving
       toast(t('app.mdDownloaded'));
     } else if (e.target.closest('.a-del')) {
       if (!confirm(t('app.confirmDelete'))) return;
@@ -553,7 +573,7 @@
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('../sw.js').catch(() => {});
 
   // ---------------- boot ----------------
-  I18N.apply();
+  applyI18n();
   $('#appVersion').textContent = APP_VERSION;
   load().then(() => {
     const q = new URLSearchParams(location.search);
