@@ -157,3 +157,4 @@ dialog::backdrop { background: rgba(10, 6, 20, .55); backdrop-filter: blur(3px);
 .btn-ai.ai-busy { opacity: 1; cursor: progress;
   background: linear-gradient(to right, color-mix(in srgb, var(--accent) 22%, var(--surface)) var(--p, 0%), var(--surface) var(--p, 0%));
   transition: background .4s linear; font-variant-numeric: tabular-nums; }
+.ver a { color: var(--accent); }

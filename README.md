@@ -25,6 +25,11 @@ Snapidian 是一個網站 + 可安裝的 App（PWA），支援繁體中文 / Eng
 - 📱 **離線可用、可安裝**（Service Worker + Web App Manifest）
 - 🌐 **中英雙語**：自動偵測，可隨時切換
 
+## iPhone App（App Store）
+
+`ios/` 是用 Capacitor 包成的 iPhone App，加上 Apple Vision 文字辨識、Apple Intelligence 與分享選單等原生功能。
+建置與上架步驟、商店文字與截圖見 [`appstore/README.md`](appstore/README.md)。
+
 ## 專案結構
 
 ```

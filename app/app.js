@@ -23,13 +23,13 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-24';
+  const APP_VERSION = '2026.11.25-25';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
     method: 'auto', vault: '', notes: 'Snapidian', attach: 'Snapidian/attachments',
     prefix: 'Snap-', tags: 'snapidian', incOcr: true, ocrLang: 'chi_tra+eng',
-    aiProvider: 'chrome', models: {}, customBaseUrl: '', aiAuto: false, settingsVersion: 3
+    aiProvider: window.SnapNative && SnapNative.isNative ? 'apple' : 'chrome', models: {}, customBaseUrl: '', aiAuto: false, aiConsent: {}, settingsVersion: 3
   };
   const SKEY = 'snapidian.settings';
   let S = { ...DEFAULTS };
@@ -60,8 +60,17 @@
   if (S.claudeModel && !S.models.claude) S.models.claude = S.claudeModel;
   delete S.claudeModel;
   const modelFor = p => (S.models[p] || (SnapAI.PROVIDERS[p] && SnapAI.PROVIDERS[p].model) || '').trim();
+  // On-device AI: Chrome's built-in AI in the browser, Apple Intelligence in the iOS app.
+  const NATIVE = !!(window.SnapNative && SnapNative.isNative);
+  const LOCAL_AI = NATIVE ? 'apple' : 'chrome';
+  let appleState = 'unsupported';
+  if (NATIVE) {
+    if (S.aiProvider === 'chrome') S.aiProvider = 'apple';
+    SnapNative.aiStatus().then(s => { appleState = s; render(); });
+  }
   function providerReady(p) {
-    if (p === 'chrome') return SnapAI.hasChrome();
+    if (p === 'apple') return NATIVE && appleState === 'available';
+    if (p === 'chrome') return !NATIVE && SnapAI.hasChrome();
     if (p === 'custom') return !!(S.customBaseUrl && modelFor('custom'));
     if (SnapAI.PROVIDERS[p]) return !!getKey(p) && !!modelFor(p);
     return false;
@@ -70,19 +79,20 @@
   // it rather than stopping. Only "off" turns AI organize off.
   function effectiveProvider() {
     if (providerReady(S.aiProvider)) return S.aiProvider;
-    if (S.aiProvider !== 'off' && SnapAI.hasChrome()) return 'chrome';
+    if (S.aiProvider !== 'off' && providerReady(LOCAL_AI)) return LOCAL_AI;
     return null;
   }
   const aiReady = () => !!effectiveProvider();
 
   // Version 3: everyone defaults to Chrome's built-in AI; keep another choice only if it is set up to run.
   if (Object.keys(saved).length && !(saved.settingsVersion >= 3)) {
-    if (S.aiProvider === 'off' || (S.aiProvider !== 'chrome' && !providerReady(S.aiProvider))) S.aiProvider = 'chrome';
+    if (S.aiProvider === 'off' || (S.aiProvider !== 'chrome' && S.aiProvider !== 'apple' && !providerReady(S.aiProvider))) S.aiProvider = LOCAL_AI;
     S.settingsVersion = 3;
     try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch (e) {}
   }
 
-  const hasFS = 'showDirectoryPicker' in window;
+  // Writing straight into a folder needs the File System Access API; the iOS app shares files instead.
+  const hasFS = 'showDirectoryPicker' in window && !(window.SnapNative && SnapNative.isNative);
   let dirHandle = null;
 
   // ---------------- state ----------------
@@ -216,7 +226,8 @@
       if (aiRun.has(c.id)) queueMicrotask(() => paintAi(c.id));
       // Quick switch: shows the service AI organize will actually use (a chosen service that isn't set up yet
       // falls back to Chrome's built-in AI).
-      el.querySelector('.a-ai-switch').value = effectiveProvider() || (S.aiProvider === 'off' ? 'chrome' : S.aiProvider);
+      if (NATIVE) { const o = el.querySelector('.a-ai-switch option[value=chrome]'); if (o) { o.value = 'apple'; o.textContent = 'Apple AI'; } }
+      el.querySelector('.a-ai-switch').value = effectiveProvider() || (S.aiProvider === 'off' ? LOCAL_AI : S.aiProvider);
       queueMicrotask(() => paintOcr(c.id));
       if (c.ocr) el.querySelector('.ocr-box').open = true;
       return el;
@@ -266,7 +277,7 @@
   // Main-page line showing where notes go, with a button to pick or change the folder.
   function updateDest() {
     const inFolder = folderMode() && dirHandle;
-    $('#destName').textContent = inFolder ? '📁 ' + dirHandle.name : t('app.dest.downloads');
+    $('#destName').textContent = inFolder ? '📁 ' + dirHandle.name : t(NATIVE ? 'app.dest.share' : 'app.dest.downloads');
     const btn = $('#destBtn');
     btn.hidden = !hasFS;
     btn.textContent = t(inFolder ? 'app.dest.change' : 'app.dest.choose');
@@ -311,7 +322,9 @@
     return m;
   }
 
-  function downloadFile(blob, filename) {
+  // Returns false if the user dismissed the iOS share sheet.
+  async function downloadFile(blob, filename) {
+    if (NATIVE) return SnapNative.shareFiles([{ name: filename, blob }]);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = filename;
@@ -333,8 +346,10 @@
       used.add(name);
       notes.push({ path: name, data: buildMarkdown(c, null, { dataUri: await toDataUri(c.blob) }) });
     }
-    if (notes.length === 1) downloadFile(new Blob([notes[0].data], { type: 'text/markdown' }), notes[0].path);
-    else downloadFile(makeZip(notes), `Snapidian-${stamp(new Date())}.zip`);
+    const ok = notes.length === 1
+      ? await downloadFile(new Blob([notes[0].data], { type: 'text/markdown' }), notes[0].path)
+      : await downloadFile(makeZip(notes), `Snapidian-${stamp(new Date())}.zip`);
+    if (ok === false) return;
     for (const c of list) await markSaved(c);
     render();
     toast(notes.length === 1 ? t('app.mdDownloaded') : t('app.mdZipDownloaded', { n: notes.length }));
@@ -347,7 +362,7 @@
       entries.push({ path: n.imgPath, data: new Uint8Array(await c.blob.arrayBuffer()) });
       entries.push({ path: n.notePath, data: buildMarkdown(c, n.imgPath) });
     }
-    downloadFile(makeZip(entries), list.length === 1 ? names(list[0]).note.replace(/\.md$/, '.zip') : `Snapidian-${stamp(new Date())}.zip`);
+    if (await downloadFile(makeZip(entries), list.length === 1 ? names(list[0]).note.replace(/\.md$/, '.zip') : `Snapidian-${stamp(new Date())}.zip`) === false) return;
     for (const c of list) await markSaved(c);
   }
 
@@ -490,8 +505,12 @@
     ocrBusy.set(c.id, 0); paintOcr(c.id);
     ocrProgress = p => { ocrBusy.set(c.id, p); paintOcr(c.id); };
     try {
-      const w = await guarded(getWorker());
-      const { data } = await guarded(w.recognize(c.blob));
+      let data;
+      if (NATIVE) data = { text: await guarded(SnapNative.recognizeText(c.blob)) }; // Apple Vision, on device
+      else {
+        const w = await guarded(getWorker());
+        ({ data } = await guarded(w.recognize(c.blob)));
+      }
       // Tesseract inserts spaces between CJK characters — remove them
       const text = data.text.replace(/([　-鿿＀-￯])\s+(?=[　-鿿＀-￯])/g, '$1').trim();
       if (!c.ocr.trim()) c.ocr = text; // never overwrite text the user (or AI) already filled in
@@ -521,7 +540,7 @@
     }
     return t('app.ai.err.api', { e: e.message || String(e) });
   }
-  const notReadyReason = p => t(p === 'off' ? 'app.ai.err.off' : p === 'chrome' ? 'app.ai.err.chrome_unsupported' : p === 'custom' && !S.customBaseUrl ? 'app.ai.err.no_base_url' : !modelFor(p) ? 'app.ai.err.no_model' : 'app.ai.err.no_key');
+  const notReadyReason = p => t(p === 'off' ? 'app.ai.err.off' : p === 'apple' ? 'app.ai.err.apple_unavailable' : p === 'chrome' ? 'app.ai.err.chrome_unsupported' : p === 'custom' && !S.customBaseUrl ? 'app.ai.err.no_base_url' : !modelFor(p) ? 'app.ai.err.no_model' : 'app.ai.err.no_key');
   // Take the user straight to where it's fixed, with the reason shown there (the dialog covers the toast).
   function askToSetUp(p) {
     // A cloud service only needs its key / model / URL: ask for just those in a small window.
@@ -607,7 +626,7 @@
       // Estimated: approaches 95% and stays there until the answer arrives.
       const T = TYPICAL_SECONDS[st.prov] || 6;
       p = 0.1 + 0.85 * (1 - Math.exp(-(Date.now() - st.start) / 1000 / T));
-      text = t('app.ai.stage.think', { n: st.prov === 'chrome' ? 'AI' : providerName(st.prov), p: Math.floor(p * 100) });
+      text = t('app.ai.stage.think', { n: st.prov === 'chrome' || st.prov === 'apple' ? 'AI' : providerName(st.prov), p: Math.floor(p * 100) });
     } else if (st.stage === 'done') { p = 1; text = t('app.ai.stage.done'); }
     else { p = 0.05; text = t(st.stage === 'prepare' ? 'app.ai.stage.prepare' : 'app.ai.running', { p: 5 }); }
     btn.textContent = text;
@@ -620,6 +639,12 @@
     if (!aiReady()) { askToSetUp(S.aiProvider); return false; }
     aiBusy.add(c.id);
     const prov = effectiveProvider();
+    if (SnapAI.PROVIDERS[prov] && !(S.aiConsent || {})[prov]) {
+      if (!confirm(t('app.ai.consent', { n: providerName(prov) }))) { aiBusy.delete(c.id); return false; }
+      S.aiConsent = { ...(S.aiConsent || {}), [prov]: true };
+      saveSettings();
+    }
+    if (prov === 'apple' && ocrWaiting.has(c.id)) await ocrWaiting.get(c.id);
     const st = { prov, stage: 'start', start: Date.now(), dl: 0 };
     aiRun.set(c.id, st);
     paintAi(c.id);
@@ -752,6 +777,7 @@
     const hint = $('#s-aiHint');
     if (p === 'off') { hint.textContent = ''; return; }
     if (meta) { hint.textContent = t('set.ai.hint.' + p); return; }
+    if (p === 'apple') { hint.textContent = t('set.ai.hint.apple') + ' ' + t('set.ai.apple.' + appleState); return; }
     hint.textContent = t('set.ai.hint.chrome');
     const st = await SnapAI.chromeStatus(I18N.lang);
     if ($('#s-aiProvider').value === 'chrome') hint.textContent = t('set.ai.hint.chrome') + ' ' + t('set.ai.chrome.status', { s: t('set.ai.chrome.' + st.state) });
@@ -818,7 +844,13 @@
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('../sw.js').catch(() => {});
 
   // ---------------- boot ----------------
+  // Phones and the iOS app have no drag-and-drop or Ctrl/⌘+V: describe tapping instead.
+  if (NATIVE || matchMedia('(pointer: coarse)').matches) $('#drop span[data-i18n]').dataset.i18n = 'app.drop.descTouch';
   applyI18n();
+  if (NATIVE) {
+    const o = $('#s-aiProvider option[value=chrome]');
+    if (o) { o.value = 'apple'; o.dataset.i18n = 'set.ai.apple'; o.textContent = t('set.ai.apple'); }
+  }
   if (hasFS) SnapDB.get('vaultDir').then(h => { if (h && !dirHandle) dirHandle = h; updateDest(); }, () => updateDest());
   else updateDest();
   I18N.onChange(updateDest);

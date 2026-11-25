@@ -274,6 +274,23 @@
     return 'available';
   }
 
+  // ---------------- Apple Intelligence (iOS app only, on device) ----------------
+  // Apple's on-device model takes text, so it works from the recognized text of the screenshot.
+  async function apple({ ocr, lang, onStage }) {
+    const N = g.SnapNative;
+    if (!N || !N.isNative || (await N.aiStatus()) !== 'available') throw new AIError('apple_unavailable');
+    if (!ocr) throw new AIError('need_text');
+    if (onStage) onStage('think');
+    let out;
+    try {
+      out = await N.organizeText(instructions(lang, ocr).replace('"text": transcribe', '"text": copy') +
+        '\nReply with only a JSON object with the keys "title", "summary", "tags" and "text".');
+    } catch (e) { throw new AIError('api', e.message || String(e)); }
+    const parsed = clean(parseJsonText(out));
+    parsed.text = ''; // keep the text recognized by Apple Vision
+    return parsed;
+  }
+
   g.SnapAI = {
     AIError,
     chromeStatus,
@@ -286,6 +303,7 @@
       if (provider === 'openai') return openaiCompatible({ ...args, baseUrl: '' });
       if (provider === 'custom') return args.baseUrl ? openaiCompatible(args) : Promise.reject(new AIError('no_base_url'));
       if (provider === 'gemini') return gemini(args);
+      if (provider === 'apple') return apple(args);
       return Promise.reject(new AIError('off'));
     }
   };
