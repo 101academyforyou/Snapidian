@@ -230,8 +230,9 @@
       // ---------- AI ----------
       'app.ai': 'AI 整理',
       'app.ai.running': 'AI 整理中…',
-      'app.ai.stage.prepare': '準備圖片…',
-      'app.ai.stage.think': '{n} 分析中… {s} 秒',
+      'app.ai.stage.prepare': '準備圖片… {p}%',
+      'app.ai.stage.think': '{n} 分析中… {p}%',
+      'app.ai.stage.done': '完成 100%',
       'app.ai.download': '下載 AI 模型（第一次）… {p}%',
       'app.ai.switch': '切換 AI 模型',
       'app.ai.switch.custom': '其他服務',
@@ -521,8 +522,9 @@
 
       'app.ai': 'AI organize',
       'app.ai.running': 'Organizing…',
-      'app.ai.stage.prepare': 'Preparing image…',
-      'app.ai.stage.think': '{n} analyzing… {s}s',
+      'app.ai.stage.prepare': 'Preparing image… {p}%',
+      'app.ai.stage.think': '{n} analyzing… {p}%',
+      'app.ai.stage.done': 'Done 100%',
       'app.ai.download': 'Downloading AI model (first time)… {p}%',
       'app.ai.switch': 'Switch AI model',
       'app.ai.switch.custom': 'Other service',
