@@ -69,6 +69,7 @@
 
       'cta.title': '現在就開始建立你的視覺第二大腦',
       'footer.made': '為使用 Markdown 筆記、建立第二大腦的人打造。',
+      'footer.privacy': '隱私權政策',
 
       // ---------- app ----------
       'app.title': 'Snapidian App',
@@ -76,6 +77,7 @@
       'app.settings': '設定',
       'app.drop.title': '加入截圖',
       'app.drop.desc': '點擊選取、拖放或直接貼上 (Ctrl/⌘+V)',
+      'app.drop.descTouch': '點一下選取截圖或照片',
       'app.camera': '拍照',
       'app.empty': '還沒有截圖。加入第一張，開始建立你的第二大腦吧！',
       'app.count': '{n} 張截圖 · {p} 張待存入',
@@ -266,6 +268,15 @@
       'app.ai.err.chrome_unsupported': '這台電腦或瀏覽器無法使用 Chrome 內建 AI，請在下方改選 Claude、ChatGPT、Gemini 等其他 AI 服務',
       'app.ai.err.chrome_unavailable': '這台裝置無法使用 Chrome 內建 AI（硬體或設定不支援）',
       'app.ai.err.chrome_need_ocr': 'Chrome 內建 AI 在這台裝置看不懂圖片，請等截圖裡的文字辨識完成後再試',
+      'app.ai.consent': '要把這張截圖傳送給 {n} 分析嗎？\n\n截圖和其中的文字會傳到 {n}（第三方 AI 服務）產生標題、摘要與標籤，依你自己的 API 帳號計費。之後使用 {n} 時不會再詢問。',
+      'app.ai.err.apple_unavailable': '這支 iPhone 無法使用 Apple Intelligence（需要 iOS 26 以上、支援的機型，並在「設定」開啟 Apple Intelligence），可以改選 Claude、ChatGPT 或 Gemini',
+      'app.ai.err.need_text': '請等截圖裡的文字辨識完成後再試',
+      'app.dest.share': '分享選單（可存到「檔案」或筆記 App）',
+      'set.ai.apple': 'Apple Intelligence（免費、在 iPhone 上執行）',
+      'set.ai.hint.apple': '使用 iPhone 內建的 Apple Intelligence，依截圖裡的文字整理，截圖不會離開手機。',
+      'set.ai.apple.available': '這支 iPhone 可以使用。',
+      'set.ai.apple.unavailable': '這支 iPhone 目前無法使用（請到「設定」開啟 Apple Intelligence，或改選其他 AI）。',
+      'set.ai.apple.unsupported': '需要 iOS 26 以上並支援 Apple Intelligence 的 iPhone。',
       'app.ai.err.off': '請先到設定選擇 AI 服務',
 
       'set.ai': 'AI 整理',
@@ -364,12 +375,14 @@
 
       'cta.title': 'Start building your visual second brain today',
       'footer.made': 'Built for people who keep a second brain in Markdown notes.',
+      'footer.privacy': 'Privacy Policy',
 
       'app.title': 'Snapidian App',
       'app.back': 'Website',
       'app.settings': 'Settings',
       'app.drop.title': 'Add screenshots',
       'app.drop.desc': 'Tap to choose, drag & drop, or paste (Ctrl/⌘+V)',
+      'app.drop.descTouch': 'Tap to choose a screenshot or photo',
       'app.camera': 'Camera',
       'app.empty': 'No screenshots yet. Add your first one and start building your second brain!',
       'app.count': '{n} screenshots · {p} pending',
@@ -558,6 +571,15 @@
       'app.ai.err.chrome_unsupported': 'Chrome built-in AI isn’t available on this computer or browser — choose another AI service below, such as Claude, ChatGPT or Gemini',
       'app.ai.err.chrome_unavailable': 'Chrome built-in AI is not available on this device',
       'app.ai.err.chrome_need_ocr': 'Chrome built-in AI can’t read images on this device — wait for the screenshot’s text to be recognized, then try again',
+      'app.ai.consent': 'Send this screenshot to {n} for analysis?\n\nThe screenshot and its text are sent to {n} (a third-party AI service) to write a title, summary and tags, billed to your own API account. You won’t be asked again for {n}.',
+      'app.ai.err.apple_unavailable': 'Apple Intelligence isn’t available on this iPhone (needs iOS 26+, a supported model, and Apple Intelligence turned on in Settings) — choose Claude, ChatGPT or Gemini instead',
+      'app.ai.err.need_text': 'Wait for the screenshot’s text to be recognized, then try again',
+      'app.dest.share': 'Share sheet (save to Files or a notes app)',
+      'set.ai.apple': 'Apple Intelligence (free, runs on iPhone)',
+      'set.ai.hint.apple': 'Uses Apple Intelligence built into iPhone and works from the screenshot’s text; screenshots never leave the phone.',
+      'set.ai.apple.available': 'Available on this iPhone.',
+      'set.ai.apple.unavailable': 'Not available right now (turn on Apple Intelligence in Settings, or choose another AI).',
+      'set.ai.apple.unsupported': 'Needs an iPhone that supports Apple Intelligence on iOS 26 or later.',
       'app.ai.err.off': 'Choose an AI service in Settings first',
 
       'set.ai': 'AI organize',

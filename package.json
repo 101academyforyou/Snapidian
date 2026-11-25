@@ -1,0 +1,20 @@
+{
+  "name": "snapidian",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Snapidian — Capture Anything. Save to Your Knowledge.",
+  "scripts": {
+    "build:www": "node scripts/build-www.mjs",
+    "ios:sync": "npm run build:www && npx cap sync ios",
+    "ios:open": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.6.2",
+    "@capacitor/ios": "8.6.2",
+    "@capacitor/filesystem": "8.1.5",
+    "@capacitor/share": "8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.2"
+  }
+}

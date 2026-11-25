@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>隱私權政策 Privacy Policy — Snapidian</title>
+  <meta name="description" content="Snapidian 隱私權政策 / Privacy Policy">
+  <meta name="theme-color" content="#7c3aed">
+  <link rel="canonical" href="https://snapidian.onepointzeroone.org/privacy/">
+  <link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/site.css">
+  <style>
+    .policy { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
+    .policy h1 { font-size: clamp(1.8rem, 5vw, 2.4rem); margin: 0 0 6px; }
+    .policy h2 { font-size: 1.2rem; margin: 32px 0 8px; }
+    .policy p, .policy li { color: var(--muted); }
+    .policy li { margin: 6px 0; }
+    .policy a { color: var(--accent); }
+    .updated { font-size: .9rem; }
+    [data-lang] { display: none; }
+    html[lang="zh-Hant"] [data-lang="zh"], html[lang="en"] [data-lang="en"] { display: block; }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap">
+      <a class="logo" href="../"><img src="../assets/icon.svg" alt="">Snapidian</a>
+      <span class="spacer" style="margin-left:auto"></span>
+      <button class="btn btn-sm lang-btn" id="langBtn" data-i18n="lang.toggle">EN</button>
+    </div>
+  </header>
+
+  <main class="policy">
+    <article data-lang="zh">
+      <h1>隱私權政策</h1>
+      <p class="updated">最後更新：2026 年 11 月 25 日</p>
+      <p>Snapidian（網站與 iPhone App）把截圖整理成 Markdown 筆記。我們不經營伺服器、沒有帳號系統，也不收集任何個人資料或使用統計。</p>
+
+      <h2>資料存在哪裡</h2>
+      <ul>
+        <li>你加入的截圖、標題、筆記、標籤與辨識出的文字，只存在你自己的裝置（瀏覽器或 App 的本機儲存空間）。</li>
+        <li>你填入的 AI 服務 API 金鑰只存在你的裝置，只會在呼叫該 AI 服務時送出。</li>
+        <li>下載或存檔的筆記，只會存到你選擇的位置（例如「下載項目」、你連結的資料夾，或你在分享選單選擇的 App）。</li>
+      </ul>
+
+      <h2>文字辨識</h2>
+      <p>截圖裡的文字在你的裝置上辨識，圖片不會上傳：網頁版使用 Tesseract.js（第一次使用時會從 jsDelivr 下載辨識程式與語言資料），iPhone App 使用 Apple 的 Vision 框架。</p>
+
+      <h2>AI 整理</h2>
+      <ul>
+        <li><strong>在裝置上執行的 AI</strong>：網頁版的 Chrome 內建 AI，以及 iPhone App 的 Apple Intelligence，都在你的裝置上執行，截圖與文字不會離開裝置。</li>
+        <li><strong>第三方 AI 服務</strong>：只有在你自己選擇 Claude（Anthropic）、ChatGPT（OpenAI）、Gemini（Google）或你填入網址的其他服務，並在第一次使用時同意後，App 才會把該張截圖（縮小後的圖片）與辨識出的文字，直接從你的裝置傳給該服務，以產生標題、摘要與標籤。費用依你自己的 API 帳號計算。這些資料的處理適用各服務的隱私權政策：
+          <a href="https://www.anthropic.com/legal/privacy">Anthropic</a>、
+          <a href="https://openai.com/policies/privacy-policy/">OpenAI</a>、
+          <a href="https://policies.google.com/privacy">Google</a>。</li>
+      </ul>
+
+      <h2>其他網路連線</h2>
+      <p>網站會從 Google Fonts 載入字型；網頁版的文字辨識會從 jsDelivr 載入程式。這些服務可能會依其政策記錄連線資訊（例如 IP 位址）。網站由 GitHub Pages 提供。</p>
+
+      <h2>兒童</h2>
+      <p>Snapidian 不針對兒童設計，也不會在知情下收集任何人的個人資料。</p>
+
+      <h2>政策更新</h2>
+      <p>如果本政策有變更，會更新這個頁面與上方的日期。</p>
+
+      <h2>聯絡我們</h2>
+      <p>有任何問題，請到 <a href="https://github.com/101academyforyou/Snapidian/issues">GitHub Issues</a> 留言。</p>
+    </article>
+
+    <article data-lang="en">
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated: November 25, 2026</p>
+      <p>Snapidian (the website and the iPhone app) turns screenshots into Markdown notes. We run no servers, have no accounts, and collect no personal data or usage analytics.</p>
+
+      <h2>Where your data is stored</h2>
+      <ul>
+        <li>The screenshots you add, and their titles, notes, tags and recognized text, are stored only on your own device (in the browser’s or app’s local storage).</li>
+        <li>API keys you enter for AI services are stored only on your device and are sent only with requests to that service.</li>
+        <li>Notes you download or save go only where you choose (for example Downloads, a folder you connected, or the app you pick in the share sheet).</li>
+      </ul>
+
+      <h2>Text recognition</h2>
+      <p>Text in screenshots is recognized on your device; images are not uploaded. The website uses Tesseract.js (its engine and language data are downloaded from jsDelivr on first use); the iPhone app uses Apple’s Vision framework.</p>
+
+      <h2>AI organize</h2>
+      <ul>
+        <li><strong>On-device AI</strong>: Chrome’s built-in AI on the website and Apple Intelligence in the iPhone app run on your device; screenshots and text don’t leave it.</li>
+        <li><strong>Third-party AI services</strong>: only if you choose Claude (Anthropic), ChatGPT (OpenAI), Gemini (Google) or another service at a URL you enter, and agree the first time, does the app send that screenshot (a downscaled image) and its recognized text directly from your device to that service to write a title, summary and tags, billed to your own API account. That data is handled under each service’s privacy policy:
+          <a href="https://www.anthropic.com/legal/privacy">Anthropic</a>,
+          <a href="https://openai.com/policies/privacy-policy/">OpenAI</a>,
+          <a href="https://policies.google.com/privacy">Google</a>.</li>
+      </ul>
+
+      <h2>Other network connections</h2>
+      <p>The website loads fonts from Google Fonts, and text recognition on the website loads its engine from jsDelivr. These services may log connection details (such as IP addresses) under their own policies. The website is hosted on GitHub Pages.</p>
+
+      <h2>Children</h2>
+      <p>Snapidian is not directed at children and does not knowingly collect anyone’s personal data.</p>
+
+      <h2>Changes</h2>
+      <p>If this policy changes, this page and the date above will be updated.</p>
+
+      <h2>Contact</h2>
+      <p>For any questions, please open an issue on <a href="https://github.com/101academyforyou/Snapidian/issues">GitHub Issues</a>.</p>
+    </article>
+  </main>
+
+  <script src="../assets/i18n.js"></script>
+  <script>
+    I18N.apply();
+    document.getElementById('langBtn').addEventListener('click', () => I18N.toggle());
+  </script>
+</body>
+</html>
