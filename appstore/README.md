@@ -16,7 +16,51 @@ iPhone App 用 [Capacitor](https://capacitorjs.com/) 把網站包成原生 App�
 
 ---
 
-## 1. 在 Mac 上建置
+## 不用 Mac：用 GitHub 自動建置並上傳（建議）
+
+GitHub 的 Mac 主機會幫你建置、簽署並上傳到 App Store Connect（`.github/workflows/ios.yml`）。你只需要在瀏覽器完成下面幾步。
+
+### A. App Store Connect API 金鑰（只要做一次）
+
+1. [App Store Connect](https://appstoreconnect.apple.com/) → **使用者與存取權限** → **整合** → **App Store Connect API** → **團隊金鑰** → **＋**。
+2. 名稱填 `GitHub`，存取權限選 **管理（Admin）**（自動簽署需要建立憑證與描述檔）。
+3. **下載 API 金鑰**（`.p8` 檔，只能下載一次，請妥善保存），並記下頁面上的 **金鑰 ID（Key ID）** 和 **發行者 ID（Issuer ID）**。
+4. 到 [developer.apple.com/account](https://developer.apple.com/account) → **會員資格詳細資訊**，記下 **團隊 ID（Team ID）**。
+
+### B. 註冊 Bundle ID 並建立 App
+
+1. [Identifiers](https://developer.apple.com/account/resources/identifiers/list) → **＋** → **App IDs** → **App** → Bundle ID 選 **Explicit**，填 `org.onepointzeroone.snapidian`，描述填 `Snapidian` → 註冊。
+2. App Store Connect → **App** → **＋** → **新增 App**：平台 iOS、名稱 `Snapidian`、主要語言繁體中文、套件 ID 選剛註冊的 `org.onepointzeroone.snapidian`、SKU `snapidian-ios`。
+
+### C. 把金鑰放進 GitHub（不要貼到聊天或 Issue 裡）
+
+到 [Repo → Settings → Secrets and variables → Actions](https://github.com/101academyforyou/Snapidian/settings/secrets/actions) → **New repository secret**，新增 4 個：
+
+| 名稱 | 內容 |
+|---|---|
+| `APP_STORE_CONNECT_KEY_ID` | 金鑰 ID |
+| `APP_STORE_CONNECT_ISSUER_ID` | 發行者 ID |
+| `APP_STORE_CONNECT_PRIVATE_KEY` | 用文字編輯器打開 `.p8` 檔，整份內容（含 `-----BEGIN PRIVATE KEY-----` 那兩行）貼上 |
+| `APPLE_TEAM_ID` | 團隊 ID |
+
+### D. 建置並上傳
+
+1. 到 [Actions → iOS app](https://github.com/101academyforyou/Snapidian/actions/workflows/ios.yml) → **Run workflow** → 勾選上傳 → **Run workflow**。
+2. 約 10–20 分鐘完成。建置號碼會自動遞增。
+3. 上傳後 App Store Connect 需要約 10–30 分鐘處理，之後會出現在 **TestFlight** 與版本頁的「建置版本」。可以先用 TestFlight 裝到自己的 iPhone 試用。
+
+失敗的話，打開那次執行的紀錄，把錯誤訊息貼給 Claude。
+
+### E. 填寫商店資料並送審
+
+照下面「3. App Store Connect」填文字、上傳截圖、選建置版本，再按 **提交審查**。
+
+- **價格與供應狀況**：建議**取消勾選中國大陸**。Snapidian 有 AI 功能，在中國大陸上架需要 AIGC 服務備案與安全評估。
+- **年齡分級**：App Store Connect 有新的問題（位置分享、約會等），Snapidian 都選「否／無」。
+
+---
+
+## 1. 在 Mac 上建置（自己有 Mac 時）
 
 需要：Xcode 26 以上（Apple Intelligence 需要 iOS 26 SDK）、Node.js 20 以上。
 
@@ -49,7 +93,7 @@ npm run ios:open
 3. 接上 iPhone，選它當執行目標，按 ▶︎ 試跑。確認：加入截圖後會自動辨識文字、「✦ AI 整理」可用、「下載 Markdown」會跳出分享選單。
 4. 版本號在 **General → Identity**：Version `1.0`、Build `1`（每次上傳 Build 要加 1）。
 
-## 2. 上傳
+## 2. 上傳（自己有 Mac 時）
 
 1. Xcode 目標選 **Any iOS Device (arm64)**。
 2. 選單 **Product → Archive**。
