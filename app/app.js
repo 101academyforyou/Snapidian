@@ -23,7 +23,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-12';
+  const APP_VERSION = '2026.11.25-13';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -195,6 +195,8 @@
     $('#clearDoneBtn').hidden = pending === caps.length;
     $('#aiAllBtn').hidden = !aiReady() || pending === 0;
     $('#aiTip').hidden = aiReady() || caps.length === 0;
+    $('#autoAiRow').hidden = !aiReady();
+    $('#autoAi').checked = !!S.aiAuto;
   }
 
   // ---------------- saving ----------------
@@ -580,6 +582,19 @@
   });
   $('#s-connect').addEventListener('click', connectVault);
   $('#aiTipBtn').addEventListener('click', () => $('#settingsBtn').click());
+  $('#autoAi').addEventListener('change', async e => {
+    S.aiAuto = e.target.checked;
+    saveSettings();
+    if (!S.aiAuto || S.aiProvider !== 'chrome') return;
+    // This click is the user gesture Chrome needs to start downloading its model, so start it now.
+    try {
+      const state = await SnapAI.warmUp(I18N.lang, p => toast(t('app.ai.download', { p: Math.round(p * 100) })));
+      if (state === 'available') toast(t('app.ai.ready'));
+    } catch (err) {
+      console.error(err);
+      toast(t('app.ai.err.api', { e: err.message || String(err) }));
+    }
+  });
   $('#s-lang').addEventListener('change', e => I18N.setLang(e.target.value));
   dlg.addEventListener('close', () => {
     fields.forEach(k => { S[k] = $('#s-' + k).value.trim(); });
