@@ -154,3 +154,6 @@ dialog::backdrop { background: rgba(10, 6, 20, .55); backdrop-filter: blur(3px);
 .btn-danger-ghost { color: var(--danger); background: transparent; }
 #as-modelSel, #s-modelSel { margin-bottom: 6px; }
 #aiSetup select { width: 100%; font: inherit; color: inherit; background: var(--surface-2); border: 1px solid transparent; border-radius: 10px; padding: 9px 12px; }
+.btn-ai.ai-busy { opacity: 1; cursor: progress;
+  background: linear-gradient(to right, color-mix(in srgb, var(--accent) 22%, var(--surface)) var(--p, 0%), var(--surface) var(--p, 0%));
+  transition: background .4s linear; font-variant-numeric: tabular-nums; }

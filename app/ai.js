@@ -63,13 +63,15 @@
   let sdkP = null;
   const loadSdk = () => (sdkP ||= import('./vendor/anthropic-sdk.js').then(m => m.default));
 
-  async function claude({ blob, ocr, lang, apiKey, model }) {
+  async function claude({ blob, ocr, lang, apiKey, model, onStage }) {
     if (!apiKey) throw new AIError('no_key');
+    if (onStage) onStage('prepare');
     const Anthropic = await loadSdk();
     // The key is the user's own and stays in their browser, so a direct browser call is intended here.
     const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true, maxRetries: 2 });
     const img = await prepareImage(blob);
     const data = await toBase64(img);
+    if (onStage) onStage('think');
     let res;
     try {
       res = await client.beta.messages.create({
@@ -127,11 +129,13 @@
   }
 
   // OpenAI Chat Completions — also spoken by OpenRouter, Groq, DeepSeek, Mistral, Ollama, LM Studio and others.
-  async function openaiCompatible({ blob, ocr, lang, apiKey, model, baseUrl }) {
+  async function openaiCompatible({ blob, ocr, lang, apiKey, model, baseUrl, onStage }) {
     if (!model) throw new AIError('no_model');
     const custom = !!baseUrl;
     if (!custom && !apiKey) throw new AIError('no_key');
+    if (onStage) onStage('prepare');
     const data = await toBase64(await prepareImage(blob));
+    if (onStage) onStage('think');
     const url = (baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '') + '/chat/completions';
     const headers = { 'content-type': 'application/json' };
     if (apiKey) headers.authorization = 'Bearer ' + apiKey;
@@ -161,10 +165,12 @@
   }
 
   // Google Gemini API (generateContent)
-  async function gemini({ blob, ocr, lang, apiKey, model }) {
+  async function gemini({ blob, ocr, lang, apiKey, model, onStage }) {
     if (!apiKey) throw new AIError('no_key');
     if (!model) throw new AIError('no_model');
+    if (onStage) onStage('prepare');
     const data = await toBase64(await prepareImage(blob));
+    if (onStage) onStage('think');
     const url = `https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(model)}:generateContent`;
     const headers = { 'content-type': 'application/json', 'x-goog-api-key': apiKey };
     const contents = [{ role: 'user', parts: [
@@ -227,7 +233,7 @@
     return { state: 'unavailable' };
   }
 
-  async function chrome({ blob, ocr, lang, onProgress }) {
+  async function chrome({ blob, ocr, lang, onProgress, onStage }) {
     const st = await chromeStatus(lang);
     if (st.state === 'unsupported') throw new AIError('chrome_unsupported');
     if (st.state === 'unavailable') throw new AIError('chrome_unavailable');
@@ -243,7 +249,9 @@
     });
     try {
       const content = [{ type: 'text', value: instructions(lang, ocr) + '\nReply with JSON only.' }];
+      if (onStage) onStage('prepare');
       if (st.withImage) content.unshift({ type: 'image', value: await prepareImage(blob) });
+      if (onStage) onStage('think');
       const out = await session.prompt([{ role: 'user', content }], { responseConstraint: SCHEMA });
       const parsed = clean(JSON.parse(out));
       if (!st.withImage) parsed.text = ''; // the model never saw the image, so keep the OCR text instead
