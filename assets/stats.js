@@ -1,24 +1,11 @@
-/* Snapidian anonymous user count.
- * Each browser adds 1 to a public counter the first time it opens the web app, and the homepage shows the total.
- * Only a bare "+1" is sent: no identifier, no screenshot, no text. The iPhone app never calls this. */
+/* Snapidian user count shown on the homepage.
+ * The number is set by hand in assets/stats.json; nothing is sent from the website or the app. */
 (function () {
-  const BASE = 'https://abacus.jasoncameron.dev';
-  const NS = 'snapidian-onepointzeroone', KEY = 'users';
-  const FLAG = 'snapidian.counted';
-  const call = path => fetch(`${BASE}/${path}/${NS}/${KEY}`, { cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer' })
-    .then(r => (r.ok ? r.json() : null)).then(j => (j && Number.isFinite(j.value) ? j.value : null)).catch(() => null);
-
-  const counted = () => { try { return localStorage.getItem(FLAG) === '1'; } catch (e) { return true; } };
-
+  const SRC = (document.currentScript && document.currentScript.src) || location.href;
   window.SnapStats = {
-    // Counts this browser once. Called by the web app on startup.
-    countOnce() {
-      if (counted()) return Promise.resolve(null);
-      try { localStorage.setItem(FLAG, '1'); } catch (e) { return Promise.resolve(null); }
-      return call('hit');
-    },
-    get: () => call('get'),
-    // Fills <… data-user-count> with the total and unhides it; stays hidden if the count is unavailable.
+    get: () => fetch(new URL('stats.json', SRC), { cache: 'no-cache' })
+      .then(r => (r.ok ? r.json() : null)).then(j => (j && Number.isFinite(j.users) ? j.users : null)).catch(() => null),
+    // Fills <… data-user-count> with the number and unhides it; stays hidden while the number is 0 or missing.
     show(el) {
       if (!el) return;
       const num = el.querySelector('[data-num]');
