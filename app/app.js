@@ -4,7 +4,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-4';
+  const APP_VERSION = '2026.11.25-5';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
