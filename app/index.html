@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-Hant" data-title-key="app.title">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Snapidian App</title>
+  <meta name="theme-color" content="#7c3aed">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Snapidian">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="top">
+    <a class="logo" href="../"><img src="../assets/icon.svg" alt="">Snapidian</a>
+    <span class="grow"></span>
+    <button class="icon-btn" id="installBtn" hidden data-i18n-title="app.install">
+      <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg>
+    </button>
+    <button class="chip" id="langBtn" data-i18n="lang.toggle">EN</button>
+    <button class="icon-btn" id="settingsBtn" data-i18n-title="app.settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </header>
+
+  <main class="main">
+    <p class="slogan" data-i18n="brand.slogan">Capture Anything. Save to Your Knowledge.</p>
+
+    <label class="drop" id="drop">
+      <input type="file" id="fileInput" accept="image/*" multiple hidden>
+      <svg viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M12 8v8M8 12h8"/></svg>
+      <strong data-i18n="app.drop.title">加入截圖</strong>
+      <span data-i18n="app.drop.desc">點擊選取、拖放或直接貼上</span>
+    </label>
+
+    <div class="bar" id="bar" hidden>
+      <span id="count" class="muted"></span>
+      <span class="grow"></span>
+      <button class="btn btn-ghost" id="clearDoneBtn" data-i18n="app.clearDone">清除已存入</button>
+      <button class="btn btn-primary" id="saveAllBtn" data-i18n="app.saveAll">全部存入 Obsidian</button>
+    </div>
+
+    <p class="empty" id="empty" data-i18n="app.empty"></p>
+    <div class="list" id="list"></div>
+  </main>
+
+  <template id="cardTpl">
+    <article class="cap">
+      <div class="thumb"><img alt=""><span class="status"></span></div>
+      <div class="fields">
+        <input class="f-title" data-i18n-placeholder="app.field.title">
+        <textarea class="f-note" rows="2" data-i18n-placeholder="app.field.note"></textarea>
+        <input class="f-tags" data-i18n-placeholder="app.field.tags">
+        <details class="ocr-box">
+          <summary data-i18n="app.field.ocr">OCR 文字</summary>
+          <textarea class="f-ocr" rows="4"></textarea>
+        </details>
+        <div class="actions">
+          <button class="btn btn-primary a-save" data-i18n="app.save">存入 Obsidian</button>
+          <button class="btn a-ocr" data-i18n="app.ocr">辨識文字</button>
+          <button class="btn a-copy" data-i18n="app.copy">複製 Markdown</button>
+          <span class="grow"></span>
+          <button class="icon-btn danger a-del" data-i18n-title="app.delete">
+            <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+          </button>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <dialog id="settings">
+    <form method="dialog" class="sheet">
+      <h2 data-i18n="set.title">設定</h2>
+
+      <label><span data-i18n="set.lang">介面語言</span>
+        <select id="s-lang"><option value="zh">繁體中文</option><option value="en">English</option></select>
+      </label>
+
+      <label><span data-i18n="set.method">儲存方式</span>
+        <select id="s-method">
+          <option value="auto" data-i18n="set.method.auto"></option>
+          <option value="folder" data-i18n="set.method.folder"></option>
+          <option value="share" data-i18n="set.method.share"></option>
+          <option value="zip" data-i18n="set.method.zip"></option>
+        </select>
+      </label>
+
+      <div class="vault-row">
+        <span id="s-conn" class="muted"></span>
+        <button type="button" class="btn" id="s-connect" data-i18n="set.connect">連結 Vault 資料夾</button>
+      </div>
+
+      <label><span data-i18n="set.vault">Vault 名稱</span>
+        <input id="s-vault" placeholder="My Vault">
+        <small class="muted" data-i18n="set.vault.hint"></small>
+      </label>
+      <div class="two">
+        <label><span data-i18n="set.notes">筆記資料夾</span><input id="s-notes"></label>
+        <label><span data-i18n="set.attach">附件資料夾</span><input id="s-attach"></label>
+      </div>
+      <div class="two">
+        <label><span data-i18n="set.prefix">檔名前綴</span><input id="s-prefix"></label>
+        <label><span data-i18n="set.tags">預設標籤</span><input id="s-tags"></label>
+      </div>
+      <label class="check"><input type="checkbox" id="s-incOcr"><span data-i18n="set.includeOcr">筆記中附上 OCR 文字</span></label>
+      <label><span data-i18n="set.ocrLang">OCR 語言</span>
+        <select id="s-ocrLang">
+          <option value="chi_tra+eng">繁體中文 + English</option>
+          <option value="chi_sim+eng">简体中文 + English</option>
+          <option value="eng">English</option>
+          <option value="jpn+eng">日本語 + English</option>
+        </select>
+      </label>
+      <button class="btn btn-primary full" value="ok" data-i18n="set.done">完成</button>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="../assets/i18n.js"></script>
+  <script src="db.js"></script>
+  <script src="zip.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

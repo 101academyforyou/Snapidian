@@ -1,0 +1,27 @@
+{
+  "name": "Snapidian",
+  "short_name": "Snapidian",
+  "description": "Capture Anything. Save to Your Knowledge. 讓手機截圖成為 Obsidian 第二大腦的一部分",
+  "id": "./app/",
+  "start_url": "./app/",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f0c18",
+  "theme_color": "#7c3aed",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "share_target": {
+    "action": "./app/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "files": [{ "name": "screenshots", "accept": ["image/*"] }]
+    }
+  }
+}
