@@ -132,3 +132,7 @@ dialog::backdrop { background: rgba(10, 6, 20, .55); backdrop-filter: blur(3px);
 .ai-tip > span[data-i18n] { flex: 1; }
 .ai-tip .btn-sm { flex: none; }
 .ver { text-align: center; font-size: .78rem; }
+.thumb-col { display: flex; flex-direction: column; gap: 6px; align-self: start; min-width: 0; }
+.taken { color: var(--muted); font-size: .8rem; text-align: center; }
+.ocr-status { font-weight: 500; color: var(--accent); margin-left: 6px; }
+.link-btn { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }

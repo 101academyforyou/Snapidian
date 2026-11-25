@@ -1,16 +1,35 @@
 /* Snapidian App */
 (() => {
+  // A translation file older than this script (a cached copy) lacks newer strings. Reload once to get
+  // matching files; the sessionStorage flag keeps this from ever looping.
+  if (I18N.t('app.ocr.retry') === 'app.ocr.retry') {
+    try {
+      if (!sessionStorage.getItem('snapidian.i18nReload')) {
+        sessionStorage.setItem('snapidian.i18nReload', '1');
+        location.reload();
+        return;
+      }
+    } catch (e) { /* storage blocked: carry on with what we have */ }
+  }
   const { t } = I18N;
+  // Translate, but if the translation file is an older cached copy that lacks a key, keep the
+  // element's built-in text rather than showing the raw key (e.g. "app.downloadMd").
+  function applyI18n(root) {
+    const before = new Map();
+    (root || document).querySelectorAll('[data-i18n]').forEach(el => before.set(el, el.textContent));
+    I18N.apply(root);
+    before.forEach((text, el) => { if (el.textContent === el.dataset.i18n && text.trim()) el.textContent = text; });
+  }
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-6';
+  const APP_VERSION = '2026.11.25-9';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
     method: 'auto', vault: '', notes: 'Snapidian', attach: 'Snapidian/attachments',
     prefix: 'Snap-', tags: 'snapidian', incOcr: true, ocrLang: 'chi_tra+eng',
-    aiProvider: 'off', claudeModel: 'claude-opus-5-5', aiAuto: false, autoOcr: true
+    aiProvider: 'off', claudeModel: 'claude-opus-5-5', aiAuto: false
   };
   const SKEY = 'snapidian.settings';
   let S = { ...DEFAULTS };
@@ -54,21 +73,29 @@
     toast._t = setTimeout(() => el.classList.remove('show'), action ? 6000 : 2600);
   }
 
+  // File names follow when the screenshot was taken, when that is known.
   function names(c) {
-    const d = new Date(c.createdAt);
+    const d = new Date(c.takenAt || c.createdAt);
     const base = `${S.prefix}${stamp(d)}`;
     const img = `${base}.${extOf(c.type)}`;
     const note = (c.title.trim() ? safeName(c.title) : base) + '.md';
     return { img, note, imgPath: joinPath(S.attach, img), notePath: joinPath(S.notes, note) };
   }
 
-  function buildMarkdown(c, imgPath) {
+  const fmtTime = ms => new Date(ms).toLocaleString(I18N.lang === 'zh' ? 'zh-TW' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' });
+
+  /** imgPath: vault path for an ![[embed]]; or pass { dataUri } to put the image inside the note itself. */
+  function buildMarkdown(c, imgPath, { dataUri } = {}) {
     const d = new Date(c.createdAt);
     const tags = parseTags(S.tags + ' ' + c.tags);
-    const title = c.title.trim() || `${t('app.untitled')} ${d.toLocaleString(I18N.lang === 'zh' ? 'zh-TW' : 'en-US')}`;
-    const lines = ['---', `created: ${isoLocal(d)}`, 'source: Snapidian'];
+    const title = c.title.trim() || `${t('app.untitled')} ${fmtTime(c.takenAt || c.createdAt)}`;
+    const lines = ['---'];
+    if (c.takenAt) lines.push(`taken: ${isoLocal(new Date(c.takenAt))}`);
+    lines.push(`created: ${isoLocal(d)}`, 'source: Snapidian');
     if (tags.length) { lines.push('tags:'); tags.forEach(x => lines.push(`  - ${x}`)); }
-    lines.push('---', '', `# ${title}`, '', `![[${imgPath}]]`, '');
+    const embed = dataUri ? `![${title.replace(/[\[\]]/g, '')}](${dataUri})` : `![[${imgPath}]]`;
+    lines.push('---', '', `# ${title}`, '', embed, '');
+    lines.push(`> ${c.takenAt ? t('md.taken', { d: fmtTime(c.takenAt) }) : t('md.added', { d: fmtTime(c.createdAt) })}`, '');
     if ((c.summary || '').trim()) lines.push(`## ${t('md.summary')}`, c.summary.trim(), '');
     if (c.note.trim()) lines.push(`## ${t('md.note')}`, c.note.trim(), '');
     if (S.incOcr && c.ocr.trim()) lines.push(`## ${t('md.ocr')}`, ...c.ocr.trim().split('\n').map(l => '> ' + l), '');
@@ -79,6 +106,16 @@
   async function load() {
     caps = await SnapDB.all();
     render();
+    // Screenshots added before capture times were recorded, or shared in by the service worker, get theirs now.
+    const missing = caps.filter(c => c.takenAt === undefined);
+    for (const c of missing) {
+      const m = await SnapMeta.takenAt(c.blob);
+      c.takenAt = m ? m.at : null; c.takenSource = m ? m.source : null;
+      await SnapDB.put(c);
+    }
+    if (missing.length) render();
+    // Screenshots that were never recognized (added before this was automatic, or shared in) get recognized now.
+    for (const c of caps) if (!c.ocrState && !c.ocr.trim()) queueOcr(c);
   }
 
   async function addFiles(files, sharedMsg) {
@@ -87,6 +124,8 @@
     const ids = [];
     for (const f of imgs) {
       const c = SnapDB.newCapture(f, f.name);
+      const m = await SnapMeta.takenAt(f);
+      c.takenAt = m ? m.at : null; c.takenSource = m ? m.source : null;
       ids.push(c.id);
       await SnapDB.put(c);
     }
@@ -94,8 +133,9 @@
     toast(t(sharedMsg ? 'app.shared' : 'app.added', { n: imgs.length }));
     const added = () => caps.filter(c => ids.includes(c.id));
     // Recognize text first, so AI organize (if on) can use it too.
-    if (S.autoOcr) for (const c of added()) await runOcr(c, { quiet: true });
-    if (S.aiAuto && aiReady()) await aiMany(added());
+    const jobs = added().map(queueOcr);
+    // AI organize (if on) waits for the text so it can use it too.
+    if (S.aiAuto && aiReady()) { await Promise.all(jobs); await aiMany(added()); }
   }
 
   const persist = (() => {
@@ -115,11 +155,12 @@
 
     list.replaceChildren(...caps.map(c => {
       const el = tpl.content.firstElementChild.cloneNode(true);
-      I18N.apply(el);
+      applyI18n(el);
       el.dataset.id = c.id;
       el.classList.toggle('saved', c.saved);
       el.querySelector('img').src = urlFor(c);
       el.querySelector('.status').textContent = t(c.saved ? 'app.status.saved' : 'app.status.pending');
+      el.querySelector('.taken').textContent = c.takenAt ? t('app.taken', { d: fmtTime(c.takenAt) }) : t('app.addedAt', { d: fmtTime(c.createdAt) });
       const bind = (sel, key) => {
         const input = el.querySelector(sel);
         input.value = c[key] ?? '';
@@ -128,7 +169,7 @@
       bind('.f-title', 'title'); bind('.f-note', 'note'); bind('.f-tags', 'tags'); bind('.f-ocr', 'ocr'); bind('.f-summary', 'summary');
       el.querySelector('.sum-box').hidden = !(c.summary || '').trim();
       el.querySelector('.a-ai').hidden = S.aiProvider === 'off';
-      if (ocrBusy.has(c.id)) queueMicrotask(() => paintOcr(c.id));
+      queueMicrotask(() => paintOcr(c.id));
       if (c.ocr) el.querySelector('.ocr-box').open = true;
       return el;
     }));
@@ -293,48 +334,85 @@
       document.head.append(s);
     });
   }
+  // Tesseract reports some failures (e.g. its language data not downloading) only through errorHandler,
+  // leaving the pending promise unsettled; ocrFail lets that error, or a time limit, end the current job.
+  let ocrFail = null;
+  const OCR_LIMIT_MS = 120000;
   async function getWorker() {
     if (workerP && workerLang === S.ocrLang) return workerP;
-    if (workerP) (await workerP).terminate();
+    if (workerP) workerP.then(w => w.terminate(), () => {});
     workerLang = S.ocrLang;
     workerP = (async () => {
       if (!window.Tesseract) await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
       return Tesseract.createWorker(S.ocrLang.split('+'), 1, {
-        logger: m => { if (m.status === 'recognizing text' && ocrProgress) ocrProgress(m.progress); }
+        logger: m => { if (m.status === 'recognizing text' && ocrProgress) ocrProgress(m.progress); },
+        errorHandler: e => { if (ocrFail) ocrFail(e instanceof Error ? e : new Error(String(e))); }
       });
     })();
     workerP.catch(() => { workerP = null; });
     return workerP;
   }
-  // Recognition can outlive the card's DOM (render() rebuilds the list), so progress is tracked per capture.
-  const ocrBusy = new Map(); // id -> progress 0..1
-  const ocrBtn = id => document.querySelector(`.cap[data-id="${id}"] .a-ocr`);
-  function paintOcr(id) {
-    const btn = ocrBtn(id);
-    if (!btn) return;
-    const busy = ocrBusy.has(id);
-    btn.disabled = busy;
-    btn.textContent = busy ? t('app.ocr.running', { p: Math.round(ocrBusy.get(id) * 100) }) : t('app.ocr');
+  function resetWorker() {
+    if (workerP) workerP.then(w => w.terminate(), () => {});
+    workerP = null;
   }
-  async function runOcr(c, { quiet = false } = {}) {
-    if (ocrBusy.has(c.id)) return false;
+  // Run one recognition step, failing on a worker error or after OCR_LIMIT_MS instead of hanging.
+  function guarded(promise) {
+    let timer;
+    const failed = new Promise((_, reject) => {
+      ocrFail = reject;
+      timer = setTimeout(() => reject(new Error('text recognition timed out')), OCR_LIMIT_MS);
+    });
+    return Promise.race([promise, failed]).finally(() => { clearTimeout(timer); ocrFail = null; });
+  }
+  // Text recognition runs by itself, one screenshot at a time, right after screenshots are added.
+  // Progress is tracked per capture because render() rebuilds the cards.
+  const ocrBusy = new Map();    // id -> progress 0..1 while recognizing
+  const ocrWaiting = new Map(); // id -> promise for queued or running captures
+  let ocrChain = Promise.resolve();
+  function paintOcr(id) {
+    const el = document.querySelector(`.cap[data-id="${id}"] .ocr-status`);
+    if (!el) return;
+    const c = caps.find(x => x.id === id);
+    el.replaceChildren();
+    if (ocrBusy.has(id)) el.textContent = t('app.ocr.running', { p: Math.round(ocrBusy.get(id) * 100) });
+    else if (ocrWaiting.has(id)) el.textContent = t('app.ocr.queued');
+    else if (c && c.ocrState === 'failed') {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'link-btn a-ocr-retry'; b.textContent = t('app.ocr.retry');
+      el.append(t('app.ocr.failedShort') + ' ', b);
+    }
+  }
+  function queueOcr(c) {
+    if (ocrWaiting.has(c.id)) return ocrWaiting.get(c.id);
+    const job = ocrChain.then(() => recognize(c));
+    ocrChain = job.catch(() => {});
+    ocrWaiting.set(c.id, job);
+    paintOcr(c.id);
+    return job;
+  }
+  async function recognize(c) {
     ocrBusy.set(c.id, 0); paintOcr(c.id);
     ocrProgress = p => { ocrBusy.set(c.id, p); paintOcr(c.id); };
     try {
-      const w = await getWorker();
-      const { data } = await w.recognize(c.blob);
+      const w = await guarded(getWorker());
+      const { data } = await guarded(w.recognize(c.blob));
       // Tesseract inserts spaces between CJK characters — remove them
-      c.ocr = data.text.replace(/([　-鿿＀-￯])\s+(?=[　-鿿＀-￯])/g, '$1').trim();
+      const text = data.text.replace(/([　-鿿＀-￯])\s+(?=[　-鿿＀-￯])/g, '$1').trim();
+      if (!c.ocr.trim()) c.ocr = text; // never overwrite text the user (or AI) already filled in
+      c.ocrState = 'done';
       await SnapDB.put(c);
-      if (!quiet) toast(t('app.ocr.done'));
       return true;
     } catch (e) {
       console.error(e);
-      toast(t('app.ocr.fail'));
+      resetWorker(); // a broken or stuck worker would fail every later job too
+      c.ocrState = 'failed';
+      await SnapDB.put(c).catch(() => {});
       return false;
     } finally {
       ocrProgress = null;
       ocrBusy.delete(c.id);
+      ocrWaiting.delete(c.id);
       render();
     }
   }
@@ -405,17 +483,15 @@
       try { await save([c]); } catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
     } else if (e.target.closest('.a-ai')) {
       if (await runAi(c, e.target.closest('.a-ai'))) { render(); toast(t('app.ai.done')); }
-    } else if (e.target.closest('.a-ocr')) {
-      runOcr(c);
+    } else if (e.target.closest('.a-ocr-retry')) {
+      e.preventDefault(); // the retry link sits inside <summary>; don't toggle the box
+      c.ocrState = undefined; queueOcr(c);
     } else if (e.target.closest('.a-md')) {
-      const n = names(c);
-      downloadFile(new Blob([buildMarkdown(c, n.img)], { type: 'text/markdown' }), n.note);
-      // the note embeds the image by name, so hand over the image too
-      setTimeout(() => downloadFile(c.blob, n.img), 300);
+      // One self-contained file: the image is stored inside the note as a data URI.
+      const dataUri = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(c.blob); });
+      downloadFile(new Blob([buildMarkdown(c, null, { dataUri })], { type: 'text/markdown' }), names(c).note);
+      await markSaved(c); render(); // count it as done, like saving
       toast(t('app.mdDownloaded'));
-    } else if (e.target.closest('.a-copy')) {
-      try { await navigator.clipboard.writeText(buildMarkdown(c, names(c).imgPath)); toast(t('app.copied')); }
-      catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
     } else if (e.target.closest('.a-del')) {
       if (!confirm(t('app.confirmDelete'))) return;
       await SnapDB.del(c.id); await load();
@@ -465,7 +541,6 @@
     fields.forEach(k => { $('#s-' + k).value = S[k]; });
     $('#s-incOcr').checked = S.incOcr;
     $('#s-aiAuto').checked = S.aiAuto;
-    $('#s-autoOcr').checked = S.autoOcr;
     $('#s-claudeKey').value = getKey();
     $('#s-lang').value = I18N.lang;
     updateAiUi();
@@ -481,7 +556,6 @@
     S.notes = cleanFolder(S.notes); S.attach = cleanFolder(S.attach);
     S.incOcr = $('#s-incOcr').checked;
     S.aiAuto = $('#s-aiAuto').checked;
-    S.autoOcr = $('#s-autoOcr').checked;
     setKey($('#s-claudeKey').value.trim());
     saveSettings();
     render();
@@ -499,7 +573,7 @@
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('../sw.js').catch(() => {});
 
   // ---------------- boot ----------------
-  I18N.apply();
+  applyI18n();
   $('#appVersion').textContent = APP_VERSION;
   load().then(() => {
     const q = new URLSearchParams(location.search);
