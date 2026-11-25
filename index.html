@@ -53,6 +53,7 @@
             <a class="btn btn-primary btn-lg" href="app/" data-i18n="hero.cta.open">立即開啟 App</a>
             <a class="btn btn-lg" href="#install" data-i18n="hero.cta.install">安裝到手機</a>
           </div>
+          <p class="users" data-user-count hidden><span class="dot" aria-hidden="true"></span><strong data-num></strong><span data-label></span></p>
           <p class="hero-note" data-i18n="hero.note">支援 iOS、Android 與桌面瀏覽器，免帳號、免伺服器。</p>
         </div>
         <div aria-hidden="true">
@@ -179,8 +180,10 @@ Q1 roadmap 的三個重點，記得跟設計師確認。
   </footer>
 
   <script src="assets/i18n.js"></script>
+  <script src="assets/stats.js"></script>
   <script>
     I18N.apply();
+    SnapStats.show(document.querySelector('[data-user-count]'));
     document.getElementById('langBtn').addEventListener('click', () => I18N.toggle());
     const md = document.querySelector('.code');
     const mdZh = md.innerHTML;

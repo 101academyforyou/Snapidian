@@ -83,6 +83,10 @@ img { max-width: 100%; }
 .slogan { font-size: clamp(1.15rem, 2.6vw, 1.45rem); font-weight: 700; margin: 0 0 8px; }
 .tagline { font-size: 1.1rem; color: var(--muted); margin: 0 0 28px; }
 .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; }
+.users { display: inline-flex; align-items: center; gap: 8px; margin: 20px 0 0; padding: 8px 16px; border-radius: 999px;
+  background: var(--bg-2); border: 1px solid var(--border); color: var(--muted); font-size: .92rem; }
+.users strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.users .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px color-mix(in srgb, #22c55e 25%, transparent); }
 .hero-note { color: var(--muted); font-size: .9rem; margin-top: 16px; }
 
 /* phone mock */

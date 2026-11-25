@@ -1,9 +1,9 @@
 /* Snapidian service worker: offline shell + Web Share Target */
 importScripts('app/db.js');
-const CACHE = 'snapidian-v25';
+const CACHE = 'snapidian-v26';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest',
-  'assets/site.css', 'assets/guide.css', 'assets/i18n.js', 'assets/icon.svg', 'assets/icon-192.png', 'assets/icon-512.png',
+  'assets/site.css', 'assets/guide.css', 'assets/i18n.js', 'assets/stats.js', 'assets/icon.svg', 'assets/icon-192.png', 'assets/icon-512.png',
   'iphone/', 'iphone/index.html', 'app/', 'app/index.html', 'app/app.css', 'app/app.js', 'app/db.js', 'app/zip.js', 'app/native.js', 'app/meta.js', 'app/ai.js', 'app/vendor/anthropic-sdk.js'
 ];
 
