@@ -23,7 +23,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-10';
+  const APP_VERSION = '2026.11.25-11';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -253,6 +253,27 @@
     a.download = filename;
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  }
+
+  const toDataUri = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(blob); });
+
+  // Self-contained Markdown: each note carries its image inside as a data URI. One note downloads as
+  // a .md file; several go into one ZIP so the browser doesn't ask about a burst of downloads.
+  async function downloadMarkdown(list) {
+    if (!list.length) return;
+    const notes = [];
+    const used = new Set();
+    for (const c of list) {
+      let name = names(c).note, i = 1;
+      while (used.has(name)) name = names(c).note.replace(/\.md$/, `-${i++}.md`);
+      used.add(name);
+      notes.push({ path: name, data: buildMarkdown(c, null, { dataUri: await toDataUri(c.blob) }) });
+    }
+    if (notes.length === 1) downloadFile(new Blob([notes[0].data], { type: 'text/markdown' }), notes[0].path);
+    else downloadFile(makeZip(notes), `Snapidian-${stamp(new Date())}.zip`);
+    for (const c of list) await markSaved(c);
+    render();
+    toast(notes.length === 1 ? t('app.mdDownloaded') : t('app.mdZipDownloaded', { n: notes.length }));
   }
 
   async function downloadZip(list) {
@@ -497,11 +518,7 @@
       e.preventDefault(); // the retry link sits inside <summary>; don't toggle the box
       c.ocrState = undefined; queueOcr(c);
     } else if (e.target.closest('.a-md')) {
-      // One self-contained file: the image is stored inside the note as a data URI.
-      const dataUri = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(c.blob); });
-      downloadFile(new Blob([buildMarkdown(c, null, { dataUri })], { type: 'text/markdown' }), names(c).note);
-      await markSaved(c); render(); // count it as done, like saving
-      toast(t('app.mdDownloaded'));
+      await downloadMarkdown([c]);
     } else if (e.target.closest('.a-del')) {
       if (!confirm(t('app.confirmDelete'))) return;
       await SnapDB.del(c.id); await load();
@@ -515,7 +532,7 @@
   });
 
   $('#saveAllBtn').addEventListener('click', async () => {
-    try { await save(caps.filter(c => !c.saved)); } catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
+    try { await downloadMarkdown(caps.filter(c => !c.saved)); } catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
   });
   $('#aiAllBtn').addEventListener('click', () => aiMany(caps.filter(c => !c.saved && !(c.summary || '').trim())));
   $('#clearDoneBtn').addEventListener('click', async () => {
