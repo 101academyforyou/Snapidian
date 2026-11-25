@@ -23,7 +23,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-22';
+  const APP_VERSION = '2026.11.25-23';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -213,6 +213,7 @@
       el.querySelector('.sum-box').hidden = !(c.summary || '').trim();
       // Always offered; if AI can't run yet, clicking explains what's missing and opens Settings.
       el.querySelector('.a-ai').hidden = false;
+      if (aiRun.has(c.id)) queueMicrotask(() => paintAi(c.id));
       // Quick switch: shows the service AI organize will actually use (a chosen service that isn't set up yet
       // falls back to Chrome's built-in AI).
       el.querySelector('.a-ai-switch').value = effectiveProvider() || (S.aiProvider === 'off' ? 'chrome' : S.aiProvider);
@@ -588,21 +589,46 @@
     render();
   });
 
-  async function runAi(c, btn) {
+  // Progress of AI organize, per capture (render() rebuilds the cards, so the button is looked up each time).
+  // AI services don't report how far along an answer is, so the bar while analyzing is an estimate from typical
+  // times that stops short of full; the model download, when there is one, shows Chrome's real percentage.
+  const aiRun = new Map(); // id -> { prov, stage, start, dl }
+  const TYPICAL_SECONDS = { chrome: 12 }; // cloud services: 6
+  function paintAi(id) {
+    const btn = document.querySelector(`.cap[data-id="${id}"] .a-ai`);
+    const st = aiRun.get(id);
+    if (!btn) return;
+    if (!st) { btn.classList.remove('ai-busy'); btn.style.removeProperty('--p'); return; }
+    btn.disabled = true;
+    btn.classList.add('ai-busy');
+    const secs = Math.floor((Date.now() - st.start) / 1000);
+    let text, p;
+    if (st.stage === 'download') { text = t('app.ai.download', { p: Math.round(st.dl * 100) }); p = st.dl; }
+    else if (st.stage === 'think') {
+      const T = TYPICAL_SECONDS[st.prov] || 6;
+      text = t('app.ai.stage.think', { n: st.prov === 'chrome' ? 'AI' : providerName(st.prov), s: secs });
+      p = 0.1 + 0.85 * (1 - Math.exp(-(Date.now() - st.start) / 1000 / T));
+    } else { text = t(st.stage === 'prepare' ? 'app.ai.stage.prepare' : 'app.ai.running'); p = 0.05; }
+    btn.textContent = text;
+    btn.style.setProperty('--p', Math.round(p * 100) + '%');
+  }
+  setInterval(() => aiRun.forEach((_, id) => paintAi(id)), 500);
+
+  async function runAi(c) {
     if (aiBusy.has(c.id)) return;
     if (!aiReady()) { askToSetUp(S.aiProvider); return false; }
     aiBusy.add(c.id);
-    btn = btn || document.querySelector(`.cap[data-id="${c.id}"] .a-ai`);
-    const label = btn && btn.innerHTML;
-    const setLabel = s => { if (btn) btn.textContent = s; };
-    if (btn) btn.disabled = true;
-    setLabel(t('app.ai.running'));
+    const prov = effectiveProvider();
+    const st = { prov, stage: 'start', start: Date.now(), dl: 0 };
+    aiRun.set(c.id, st);
+    paintAi(c.id);
+    const setStage = stage => { st.stage = stage; if (stage === 'think') st.start = Date.now(); paintAi(c.id); };
     try {
-      const prov = effectiveProvider();
       const r = await SnapAI.organize(prov, {
         blob: c.blob, ocr: c.ocr, lang: I18N.lang, apiKey: getKey(prov), model: modelFor(prov), baseUrl: S.customBaseUrl,
-        // Once the model is downloaded, go back to "organizing…" for the rest of the run.
-        onProgress: p => setLabel(p >= 1 ? t('app.ai.running') : t('app.ai.download', { p: Math.round(p * 100) }))
+        onStage: setStage,
+        // Chrome reports download progress only when its model must be downloaded first.
+        onProgress: p => { st.dl = p; setStage(p >= 1 ? 'start' : 'download'); }
       });
       if (!c.title.trim()) c.title = r.title;
       c.summary = r.summary;
@@ -616,7 +642,8 @@
       return false;
     } finally {
       aiBusy.delete(c.id);
-      if (btn) { btn.disabled = false; btn.innerHTML = label; }
+      aiRun.delete(c.id);
+      render();
     }
   }
   async function aiMany(list) {
@@ -646,7 +673,7 @@
     if (e.target.closest('.a-save')) {
       try { await save([c]); } catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
     } else if (e.target.closest('.a-ai')) {
-      if (await runAi(c, e.target.closest('.a-ai'))) { render(); toast(t('app.ai.done')); }
+      if (await runAi(c)) { render(); toast(t('app.ai.done')); }
     } else if (e.target.closest('.a-ocr-retry')) {
       e.preventDefault(); // the retry link sits inside <summary>; don't toggle the box
       c.ocrState = undefined; queueOcr(c);
