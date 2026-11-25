@@ -23,7 +23,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-13';
+  const APP_VERSION = '2026.11.25-14';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -474,7 +474,8 @@
     try {
       const r = await SnapAI.organize(S.aiProvider, {
         blob: c.blob, ocr: c.ocr, lang: I18N.lang, apiKey: getKey(), model: S.claudeModel,
-        onProgress: p => setLabel(t('app.ai.download', { p: Math.round(p * 100) }))
+        // Once the model is downloaded, go back to "organizing…" for the rest of the run.
+        onProgress: p => setLabel(p >= 1 ? t('app.ai.running') : t('app.ai.download', { p: Math.round(p * 100) }))
       });
       if (!c.title.trim()) c.title = r.title;
       c.summary = r.summary;
