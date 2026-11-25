@@ -3,6 +3,9 @@
   const { t } = I18N;
   const $ = s => document.querySelector(s);
 
+  // Bump on every release so users (and support) can tell which version is running.
+  const APP_VERSION = '2026.11.25-4';
+
   // ---------------- settings ----------------
   const DEFAULTS = {
     method: 'auto', vault: '', notes: 'Snapidian', attach: 'Snapidian/attachments',
@@ -147,11 +150,19 @@
     return null;
   }
 
+  // A vault's top-level folder holds Obsidian's ".obsidian" settings folder.
+  const isVaultRoot = dir => dir.getDirectoryHandle('.obsidian').then(() => true, () => false);
+
   async function connectVault() {
     try {
       dirHandle = await window.showDirectoryPicker({ id: 'snapidian-vault', mode: 'readwrite' });
       await SnapDB.set('vaultDir', dirHandle);
-      if (!S.vault) { S.vault = dirHandle.name; saveSettings(); $('#s-vault').value = S.vault; }
+      if (await isVaultRoot(dirHandle)) {
+        // Obsidian names a vault after its top-level folder.
+        S.vault = dirHandle.name; saveSettings(); $('#s-vault').value = S.vault;
+      } else {
+        toast(t('app.notVaultRoot', { n: dirHandle.name }));
+      }
       updateConn();
     } catch (e) { if (e.name !== 'AbortError') toast(t('app.error', { e: e.message })); }
   }
@@ -181,6 +192,14 @@
     return m;
   }
 
+  function downloadFile(blob, filename) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  }
+
   async function downloadZip(list) {
     const entries = [];
     for (const c of list) {
@@ -188,12 +207,7 @@
       entries.push({ path: n.imgPath, data: new Uint8Array(await c.blob.arrayBuffer()) });
       entries.push({ path: n.notePath, data: buildMarkdown(c, n.imgPath) });
     }
-    const blob = makeZip(entries);
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = list.length === 1 ? names(list[0]).note.replace(/\.md$/, '.zip') : `Snapidian-${stamp(new Date())}.zip`;
-    document.body.append(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    downloadFile(makeZip(entries), list.length === 1 ? names(list[0]).note.replace(/\.md$/, '.zip') : `Snapidian-${stamp(new Date())}.zip`);
     for (const c of list) await markSaved(c);
   }
 
@@ -225,11 +239,15 @@
         render();
         return;
       }
-      const vault = S.vault || dir.name;
-      toast(t('app.saved.folder', { f: lastNote }), {
-        label: t('app.openObsidian'),
-        href: `obsidian://open?vault=${encodeURIComponent(vault)}&file=${encodeURIComponent(lastNote.replace(/\.md$/, ''))}`
-      });
+      if (await isVaultRoot(dir)) {
+        toast(t('app.saved.folder', { f: lastNote }), {
+          label: t('app.openObsidian'),
+          href: `obsidian://open?vault=${encodeURIComponent(dir.name)}&file=${encodeURIComponent(lastNote.replace(/\.md$/, ''))}`
+        });
+      } else {
+        // Without the vault's top-level folder we can't know the vault name, so an obsidian:// link would fail.
+        toast(t('app.saved.folder', { f: lastNote }) + ' ' + t('app.notVaultRootShort'));
+      }
     } else if (method === 'share') {
       const files = [];
       for (const c of list) {
@@ -372,6 +390,12 @@
       if (await runAi(c, e.target.closest('.a-ai'))) { render(); toast(t('app.ai.done')); }
     } else if (e.target.closest('.a-ocr')) {
       runOcr(c, e.target.closest('.a-ocr'));
+    } else if (e.target.closest('.a-md')) {
+      const n = names(c);
+      downloadFile(new Blob([buildMarkdown(c, n.img)], { type: 'text/markdown' }), n.note);
+      // the note embeds the image by name, so hand over the image too
+      setTimeout(() => downloadFile(c.blob, n.img), 300);
+      toast(t('app.mdDownloaded'));
     } else if (e.target.closest('.a-copy')) {
       try { await navigator.clipboard.writeText(buildMarkdown(c, names(c).imgPath)); toast(t('app.copied')); }
       catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
@@ -457,6 +481,7 @@
 
   // ---------------- boot ----------------
   I18N.apply();
+  $('#appVersion').textContent = APP_VERSION;
   load().then(() => {
     const q = new URLSearchParams(location.search);
     if (q.has('shared')) {

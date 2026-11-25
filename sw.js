@@ -1,6 +1,6 @@
 /* Snapidian service worker: offline shell + Web Share Target */
 importScripts('app/db.js');
-const CACHE = 'snapidian-v5';
+const CACHE = 'snapidian-v6';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest',
   'assets/site.css', 'assets/guide.css', 'assets/i18n.js', 'assets/icon.svg', 'assets/icon-192.png', 'assets/icon-512.png',
@@ -30,7 +30,9 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   // network-first for same-origin so updates land quickly; cache as offline fallback
   e.respondWith(
-    fetch(e.request).then(res => {
+    // 'no-cache' revalidates with the server (a cheap 304 when nothing changed), so a new deploy shows up at once
+    // instead of after the HTTP cache (10 minutes on GitHub Pages) expires.
+    fetch(e.request, { cache: 'no-cache' }).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
       return res;
     }).catch(() => caches.match(e.request, { ignoreSearch: true }))
