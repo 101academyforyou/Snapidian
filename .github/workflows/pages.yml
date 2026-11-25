@@ -32,9 +32,22 @@ jobs:
             console.log('All', list.length, 'cached files exist');
           "
 
-  deploy:
+  # Upload and deploy run as separate jobs, as in GitHub's own Pages workflow template.
+  # In one job, deploy-pages sometimes looked up the artifact before GitHub had registered it
+  # and failed with 'No artifacts named "github-pages" were found'.
+  build:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy:
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -42,15 +55,10 @@ jobs:
       id-token: write
     concurrency:
       group: pages
-      cancel-in-progress: true
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
       - id: deployment
         uses: actions/deploy-pages@v4
