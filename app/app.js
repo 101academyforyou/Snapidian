@@ -23,13 +23,13 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-14';
+  const APP_VERSION = '2026.11.25-15';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
     method: 'auto', vault: '', notes: 'Snapidian', attach: 'Snapidian/attachments',
     prefix: 'Snap-', tags: 'snapidian', incOcr: true, ocrLang: 'chi_tra+eng',
-    aiProvider: 'chrome', claudeModel: 'claude-opus-5-5', aiAuto: false, settingsVersion: 2
+    aiProvider: 'chrome', models: {}, customBaseUrl: '', aiAuto: false, settingsVersion: 2
   };
   const SKEY = 'snapidian.settings';
   let S = { ...DEFAULTS };
@@ -46,11 +46,27 @@
   }
   const saveSettings = () => { try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch (e) {} };
 
-  // The Claude key is kept apart from the other settings and never leaves this browser except to call the Claude API.
-  const KKEY = 'snapidian.claudeKey';
-  const getKey = () => { try { return localStorage.getItem(KKEY) || ''; } catch (e) { return ''; } };
-  const setKey = v => { try { v ? localStorage.setItem(KKEY, v) : localStorage.removeItem(KKEY); } catch (e) {} };
-  const aiReady = () => S.aiProvider === 'claude' ? !!getKey() : S.aiProvider === 'chrome' ? SnapAI.hasChrome() : false;
+  // API keys are kept apart from the other settings, one per service, and never leave this browser
+  // except in requests to that service.
+  const keyName = p => 'snapidian.key.' + p;
+  const getKey = (p = S.aiProvider) => { try { return localStorage.getItem(keyName(p)) || ''; } catch (e) { return ''; } };
+  const setKey = (p, v) => { try { v ? localStorage.setItem(keyName(p), v) : localStorage.removeItem(keyName(p)); } catch (e) {} };
+  // Earlier versions kept a single Claude key and model.
+  try {
+    const old = localStorage.getItem('snapidian.claudeKey');
+    if (old) { if (!getKey('claude')) setKey('claude', old); localStorage.removeItem('snapidian.claudeKey'); }
+  } catch (e) {}
+  S.models = { ...(S.models || {}) };
+  if (S.claudeModel && !S.models.claude) S.models.claude = S.claudeModel;
+  delete S.claudeModel;
+  const modelFor = p => (S.models[p] || (SnapAI.PROVIDERS[p] && SnapAI.PROVIDERS[p].model) || '').trim();
+  function aiReady() {
+    const p = S.aiProvider;
+    if (p === 'chrome') return SnapAI.hasChrome();
+    if (p === 'custom') return !!(S.customBaseUrl && modelFor('custom'));
+    if (SnapAI.PROVIDERS[p]) return !!getKey(p) && !!modelFor(p);
+    return false;
+  }
 
   const hasFS = 'showDirectoryPicker' in window;
   let dirHandle = null;
@@ -464,7 +480,11 @@
   }
   async function runAi(c, btn) {
     if (aiBusy.has(c.id)) return;
-    if (!aiReady()) { toast(t(S.aiProvider === 'claude' ? 'app.ai.err.no_key' : S.aiProvider === 'off' ? 'app.ai.err.off' : 'app.ai.err.chrome_unsupported')); return false; }
+    if (!aiReady()) {
+      const p = S.aiProvider;
+      toast(t(p === 'off' ? 'app.ai.err.off' : p === 'chrome' ? 'app.ai.err.chrome_unsupported' : p === 'custom' && !S.customBaseUrl ? 'app.ai.err.no_base_url' : !modelFor(p) ? 'app.ai.err.no_model' : 'app.ai.err.no_key'));
+      return false;
+    }
     aiBusy.add(c.id);
     btn = btn || document.querySelector(`.cap[data-id="${c.id}"] .a-ai`);
     const label = btn && btn.innerHTML;
@@ -473,7 +493,7 @@
     setLabel(t('app.ai.running'));
     try {
       const r = await SnapAI.organize(S.aiProvider, {
-        blob: c.blob, ocr: c.ocr, lang: I18N.lang, apiKey: getKey(), model: S.claudeModel,
+        blob: c.blob, ocr: c.ocr, lang: I18N.lang, apiKey: getKey(), model: modelFor(S.aiProvider), baseUrl: S.customBaseUrl,
         // Once the model is downloaded, go back to "organizing…" for the rest of the run.
         onProgress: p => setLabel(p >= 1 ? t('app.ai.running') : t('app.ai.download', { p: Math.round(p * 100) }))
       });
@@ -552,14 +572,31 @@
 
   // settings dialog
   const dlg = $('#settings');
-  const fields = ['method', 'vault', 'notes', 'attach', 'prefix', 'tags', 'ocrLang', 'aiProvider', 'claudeModel'];
+  const fields = ['method', 'vault', 'notes', 'attach', 'prefix', 'tags', 'ocrLang', 'aiProvider'];
+  // While the dialog is open, keep what was typed for each service so switching back and forth keeps it.
+  let draft = {}, shownProvider = null;
+  function stashApiFields() {
+    if (!shownProvider || !SnapAI.PROVIDERS[shownProvider]) return;
+    draft[shownProvider] = { key: $('#s-apiKey').value.trim(), model: $('#s-model').value.trim(), baseUrl: $('#s-baseUrl').value.trim() };
+  }
   async function updateAiUi() {
+    stashApiFields();
     const p = $('#s-aiProvider').value;
-    $('#s-claudeBox').hidden = p !== 'claude';
+    shownProvider = p;
+    const meta = SnapAI.PROVIDERS[p];
+    $('#s-apiBox').hidden = !meta;
     $('#s-aiAutoRow').hidden = p === 'off';
+    if (meta) {
+      const d = draft[p] || { key: getKey(p), model: modelFor(p), baseUrl: S.customBaseUrl };
+      $('#s-apiKey').value = d.key; $('#s-model').value = d.model; $('#s-baseUrl').value = d.baseUrl || '';
+      $('#s-baseUrlRow').hidden = !meta.baseUrl;
+      $('#s-apiKey').placeholder = meta.keyHint || t('set.ai.keyOptional');
+      $('#s-keyHint').textContent = t('set.ai.keyHint.' + p);
+      $('#s-modelList').replaceChildren(...meta.models.map(m => Object.assign(document.createElement('option'), { value: m })));
+    }
     const hint = $('#s-aiHint');
     if (p === 'off') { hint.textContent = ''; return; }
-    if (p === 'claude') { hint.textContent = t('set.ai.hint.claude'); return; }
+    if (meta) { hint.textContent = t('set.ai.hint.' + p); return; }
     hint.textContent = t('set.ai.hint.chrome');
     const st = await SnapAI.chromeStatus(I18N.lang);
     if ($('#s-aiProvider').value === 'chrome') hint.textContent = t('set.ai.hint.chrome') + ' ' + t('set.ai.chrome.status', { s: t('set.ai.chrome.' + st.state) });
@@ -574,8 +611,8 @@
     fields.forEach(k => { $('#s-' + k).value = S[k]; });
     $('#s-incOcr').checked = S.incOcr;
     $('#s-aiAuto').checked = S.aiAuto;
-    $('#s-claudeKey').value = getKey();
     $('#s-lang').value = I18N.lang;
+    draft = {}; shownProvider = null;
     updateAiUi();
     if (hasFS && !dirHandle) dirHandle = await SnapDB.get('vaultDir').catch(() => null) || null;
     updateConn();
@@ -602,7 +639,12 @@
     S.notes = cleanFolder(S.notes); S.attach = cleanFolder(S.attach);
     S.incOcr = $('#s-incOcr').checked;
     S.aiAuto = $('#s-aiAuto').checked;
-    setKey($('#s-claudeKey').value.trim());
+    stashApiFields();
+    for (const [p, d] of Object.entries(draft)) {
+      setKey(p, d.key);
+      S.models[p] = d.model;
+      if (p === 'custom') S.customBaseUrl = d.baseUrl.replace(/\/+$/, '');
+    }
     saveSettings();
     render();
     toast(t('set.saved'));
