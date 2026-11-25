@@ -23,7 +23,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-11';
+  const APP_VERSION = '2026.11.25-12';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -98,14 +98,17 @@
   function buildMarkdown(c, imgPath, { dataUri } = {}) {
     const d = new Date(c.createdAt);
     const tags = parseTags(S.tags + ' ' + c.tags);
-    const title = c.title.trim() || `${t('app.untitled')} ${fmtTime(c.takenAt || c.createdAt)}`;
+    // Only what the user (or AI organize) wrote goes into the note body: no generated heading or time
+    // line. Times stay in the frontmatter.
+    const title = c.title.trim();
     const lines = ['---'];
     if (c.takenAt) lines.push(`taken: ${isoLocal(new Date(c.takenAt))}`);
     lines.push(`created: ${isoLocal(d)}`, 'source: Snapidian');
     if (tags.length) { lines.push('tags:'); tags.forEach(x => lines.push(`  - ${x}`)); }
     const embed = dataUri ? `![${title.replace(/[\[\]]/g, '')}](${dataUri})` : `![[${imgPath}]]`;
-    lines.push('---', '', `# ${title}`, '', embed, '');
-    lines.push(`> ${c.takenAt ? t('md.taken', { d: fmtTime(c.takenAt) }) : t('md.added', { d: fmtTime(c.createdAt) })}`, '');
+    lines.push('---', '');
+    if (title) lines.push(`# ${title}`, '');
+    lines.push(embed, '');
     if ((c.summary || '').trim()) lines.push(`## ${t('md.summary')}`, c.summary.trim(), '');
     if (c.note.trim()) lines.push(`## ${t('md.note')}`, c.note.trim(), '');
     if (S.incOcr && c.ocr.trim()) lines.push(`## ${t('md.ocr')}`, ...c.ocr.trim().split('\n').map(l => '> ' + l), '');
