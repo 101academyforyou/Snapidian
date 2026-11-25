@@ -143,3 +143,4 @@ dialog::backdrop { background: rgba(10, 6, 20, .55); backdrop-filter: blur(3px);
 .dest-label { color: var(--muted); }
 .dest-name { font-weight: 700; }
 .dest .btn-sm { padding: 4px 12px; font-size: .85rem; }
+.ai-need { margin: 0; padding: 8px 12px; border-radius: 10px; font-size: .88rem; font-weight: 600; color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
