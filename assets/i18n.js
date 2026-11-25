@@ -103,6 +103,9 @@
       'app.saved.zip': '已下載 ZIP，請解壓縮到 Vault',
       'app.openObsidian': '在 Obsidian 開啟',
       'app.error': '發生錯誤：{e}',
+      'app.err.folderPerm': '沒有寫入 Vault 資料夾的權限，已改為下載 ZIP。請到設定重新連結 Vault 資料夾。',
+      'app.err.shareType': '這個瀏覽器不能分享 Markdown 檔，已改為下載 ZIP，請解壓縮到 Vault。',
+      'app.aiTip': '想讓 AI 自動下標題、寫摘要、加標籤？到設定開啟「AI 整理」。',
       'app.untitled': '截圖',
       'app.install': '安裝 App',
 
@@ -338,6 +341,9 @@
       'app.saved.zip': 'ZIP downloaded — unzip it into your vault',
       'app.openObsidian': 'Open in Obsidian',
       'app.error': 'Error: {e}',
+      'app.err.folderPerm': 'No permission to write to your vault folder, so a ZIP was downloaded instead. Reconnect the vault folder in Settings.',
+      'app.err.shareType': 'This browser can’t share Markdown files, so a ZIP was downloaded instead — unzip it into your vault.',
+      'app.aiTip': 'Want AI to write a title, summary and tags? Turn on “AI organize” in Settings.',
       'app.untitled': 'Screenshot',
       'app.install': 'Install app',
 

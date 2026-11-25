@@ -133,6 +133,7 @@
     $('#saveAllBtn').disabled = pending === 0;
     $('#clearDoneBtn').hidden = pending === caps.length;
     $('#aiAllBtn').hidden = S.aiProvider === 'off' || pending === 0;
+    $('#aiTip').hidden = S.aiProvider !== 'off' || caps.length === 0;
   }
 
   // ---------------- saving ----------------
@@ -174,26 +175,55 @@
     let m = S.method;
     if (m === 'auto') {
       if (await getDir(true)) return 'folder';
-      const probe = new File([''], 'a.md', { type: 'text/markdown' });
-      return navigator.canShare && navigator.canShare({ files: [probe] }) ? 'share' : 'zip';
+      const probe = [new File([''], 'a.png', { type: 'image/png' }), new File([''], 'a.md', { type: 'text/markdown' })];
+      return navigator.canShare && navigator.canShare({ files: probe }) ? 'share' : 'zip';
     }
     return m;
   }
+
+  async function downloadZip(list) {
+    const entries = [];
+    for (const c of list) {
+      const n = names(c);
+      entries.push({ path: n.imgPath, data: new Uint8Array(await c.blob.arrayBuffer()) });
+      entries.push({ path: n.notePath, data: buildMarkdown(c, n.imgPath) });
+    }
+    const blob = makeZip(entries);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = list.length === 1 ? names(list[0]).note.replace(/\.md$/, '.zip') : `Snapidian-${stamp(new Date())}.zip`;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    for (const c of list) await markSaved(c);
+  }
+
+  // Permission errors from the browser (vault folder access or the share sheet) all surface as this.
+  const isPermissionError = e => e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
 
   async function save(list) {
     if (!list.length) return;
     const method = await resolveMethod();
 
     if (method === 'folder') {
-      const root = await getDir(true);
-      if (!root) { await connectVault(); if (!(await getDir(true))) return; }
+      if (!(await getDir(true))) { await connectVault(); if (!(await getDir(true))) return; }
       const dir = await getDir(true);
       let lastNote = '';
-      for (const c of list) {
-        const n = names(c);
-        const imgPath = await writeFile(dir, n.imgPath, c.blob);
-        lastNote = await writeFile(dir, n.notePath, buildMarkdown(c, imgPath));
-        await markSaved(c);
+      try {
+        for (const c of list) {
+          const n = names(c);
+          const imgPath = await writeFile(dir, n.imgPath, c.blob);
+          lastNote = await writeFile(dir, n.notePath, buildMarkdown(c, imgPath));
+          await markSaved(c);
+        }
+      } catch (e) {
+        if (!isPermissionError(e)) throw e;
+        // Access to the folder was revoked or it is a protected location: forget it and hand over a ZIP instead.
+        dirHandle = null;
+        await SnapDB.set('vaultDir', null).catch(() => {});
+        await downloadZip(list.filter(c => !c.saved));
+        toast(t('app.err.folderPerm'));
+        render();
+        return;
       }
       const vault = S.vault || dir.name;
       toast(t('app.saved.folder', { f: lastNote }), {
@@ -207,27 +237,24 @@
         files.push(new File([c.blob], n.img, { type: c.type }));
         files.push(new File([buildMarkdown(c, n.img)], n.note, { type: 'text/markdown' }));
       }
-      try {
-        await navigator.share({ files, title: list.length === 1 ? (list[0].title || 'Snapidian') : 'Snapidian' });
-        for (const c of list) await markSaved(c);
-        toast(t('app.saved.share'));
-      } catch (e) {
-        if (e.name !== 'AbortError') { toast(t('app.error', { e: e.message })); }
+      // Browsers only share some file types; Chrome, for example, rejects .md files with "Permission denied".
+      if (!(navigator.canShare && navigator.canShare({ files }))) {
+        await downloadZip(list);
+        toast(t('app.err.shareType'));
+      } else {
+        try {
+          await navigator.share({ files, title: list.length === 1 ? (list[0].title || 'Snapidian') : 'Snapidian' });
+          for (const c of list) await markSaved(c);
+          toast(t('app.saved.share'));
+        } catch (e) {
+          if (e.name === 'AbortError') return;
+          if (!isPermissionError(e)) throw e;
+          await downloadZip(list);
+          toast(t('app.err.shareType'));
+        }
       }
     } else {
-      const entries = [];
-      for (const c of list) {
-        const n = names(c);
-        entries.push({ path: n.imgPath, data: new Uint8Array(await c.blob.arrayBuffer()) });
-        entries.push({ path: n.notePath, data: buildMarkdown(c, n.imgPath) });
-      }
-      const blob = makeZip(entries);
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = list.length === 1 ? names(list[0]).note.replace(/\.md$/, '.zip') : `Snapidian-${stamp(new Date())}.zip`;
-      document.body.append(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-      for (const c of list) await markSaved(c);
+      await downloadZip(list);
       toast(t('app.saved.zip'));
     }
     render();
@@ -267,10 +294,6 @@
       const { data } = await w.recognize(c.blob);
       // Tesseract inserts spaces between CJK characters — remove them
       c.ocr = data.text.replace(/([　-鿿＀-￯])\s+(?=[　-鿿＀-￯])/g, '$1').trim();
-      if (!c.title.trim()) {
-        const first = c.ocr.split('\n').map(s => s.trim()).find(s => s.length >= 2);
-        if (first) c.title = first.slice(0, 40);
-      }
       await SnapDB.put(c);
       render();
       toast(t('app.ocr.done'));
@@ -344,14 +367,14 @@
     const c = caps.find(x => x.id === card.dataset.id);
     if (!c) return;
     if (e.target.closest('.a-save')) {
-      try { await save([c]); } catch (err) { toast(t('app.error', { e: err.message })); }
+      try { await save([c]); } catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
     } else if (e.target.closest('.a-ai')) {
       if (await runAi(c, e.target.closest('.a-ai'))) { render(); toast(t('app.ai.done')); }
     } else if (e.target.closest('.a-ocr')) {
       runOcr(c, e.target.closest('.a-ocr'));
     } else if (e.target.closest('.a-copy')) {
       try { await navigator.clipboard.writeText(buildMarkdown(c, names(c).imgPath)); toast(t('app.copied')); }
-      catch (err) { toast(t('app.error', { e: err.message })); }
+      catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
     } else if (e.target.closest('.a-del')) {
       if (!confirm(t('app.confirmDelete'))) return;
       await SnapDB.del(c.id); await load();
@@ -365,7 +388,7 @@
   });
 
   $('#saveAllBtn').addEventListener('click', async () => {
-    try { await save(caps.filter(c => !c.saved)); } catch (err) { toast(t('app.error', { e: err.message })); }
+    try { await save(caps.filter(c => !c.saved)); } catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
   });
   $('#aiAllBtn').addEventListener('click', () => aiMany(caps.filter(c => !c.saved && !(c.summary || '').trim())));
   $('#clearDoneBtn').addEventListener('click', async () => {
@@ -409,6 +432,7 @@
     dlg.showModal();
   });
   $('#s-connect').addEventListener('click', connectVault);
+  $('#aiTipBtn').addEventListener('click', () => $('#settingsBtn').click());
   $('#s-lang').addEventListener('change', e => I18N.setLang(e.target.value));
   dlg.addEventListener('close', () => {
     fields.forEach(k => { S[k] = $('#s-' + k).value.trim(); });

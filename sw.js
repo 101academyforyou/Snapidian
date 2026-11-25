@@ -1,6 +1,6 @@
 /* Snapidian service worker: offline shell + Web Share Target */
 importScripts('app/db.js');
-const CACHE = 'snapidian-v4';
+const CACHE = 'snapidian-v5';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest',
   'assets/site.css', 'assets/guide.css', 'assets/i18n.js', 'assets/icon.svg', 'assets/icon-192.png', 'assets/icon-512.png',
