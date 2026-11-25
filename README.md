@@ -1,5 +1,7 @@
 # Snapidian
 
+🌐 https://snapidian.onepointzeroone.org/ · App: https://snapidian.onepointzeroone.org/app/
+
 **Capture Anything. Save to Your Knowledge.**
 讓手機截圖成為 Obsidian 第二大腦的一部分。
 
@@ -50,7 +52,13 @@ python3 -m http.server 8000
 ## 部署
 
 任何靜態主機皆可（需 HTTPS 才能安裝 PWA 與使用分享功能）。
-GitHub Pages：Settings → Pages → Deploy from branch → 選擇分支與 `/ (root)`。
+本專案已設定 GitHub Pages + 自訂網域 `snapidian.onepointzeroone.org`：
+
+1. **DNS**：在 `onepointzeroone.org` 的 DNS 新增
+   `CNAME  snapidian  →  101academyforyou.github.io`
+   （若用 Cloudflare，先設為 DNS only／灰色雲，等 HTTPS 憑證發好再開 Proxy）
+2. **GitHub**：Settings → Pages → Source 選 **GitHub Actions**（`.github/workflows/pages.yml` 會自動部署）
+3. Settings → Pages → Custom domain 填 `snapidian.onepointzeroone.org`，憑證發好後勾選 **Enforce HTTPS**
 
 ## 產生的筆記範例
 
