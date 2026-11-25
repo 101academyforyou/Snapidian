@@ -23,7 +23,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-23';
+  const APP_VERSION = '2026.11.25-24';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -601,14 +601,15 @@
     if (!st) { btn.classList.remove('ai-busy'); btn.style.removeProperty('--p'); return; }
     btn.disabled = true;
     btn.classList.add('ai-busy');
-    const secs = Math.floor((Date.now() - st.start) / 1000);
     let text, p;
     if (st.stage === 'download') { text = t('app.ai.download', { p: Math.round(st.dl * 100) }); p = st.dl; }
     else if (st.stage === 'think') {
+      // Estimated: approaches 95% and stays there until the answer arrives.
       const T = TYPICAL_SECONDS[st.prov] || 6;
-      text = t('app.ai.stage.think', { n: st.prov === 'chrome' ? 'AI' : providerName(st.prov), s: secs });
       p = 0.1 + 0.85 * (1 - Math.exp(-(Date.now() - st.start) / 1000 / T));
-    } else { text = t(st.stage === 'prepare' ? 'app.ai.stage.prepare' : 'app.ai.running'); p = 0.05; }
+      text = t('app.ai.stage.think', { n: st.prov === 'chrome' ? 'AI' : providerName(st.prov), p: Math.floor(p * 100) });
+    } else if (st.stage === 'done') { p = 1; text = t('app.ai.stage.done'); }
+    else { p = 0.05; text = t(st.stage === 'prepare' ? 'app.ai.stage.prepare' : 'app.ai.running', { p: 5 }); }
     btn.textContent = text;
     btn.style.setProperty('--p', Math.round(p * 100) + '%');
   }
@@ -635,6 +636,8 @@
       c.tags = parseTags(c.tags + ' ' + r.tags.join(' ')).join(' ');
       if (!c.ocr.trim() && r.text) c.ocr = r.text;
       await SnapDB.put(c);
+      setStage('done'); // show 100% for a moment before the card refreshes
+      await new Promise(res => setTimeout(res, 400));
       return true;
     } catch (e) {
       console.error(e);
