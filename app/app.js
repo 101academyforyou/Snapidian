@@ -23,7 +23,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-15';
+  const APP_VERSION = '2026.11.25-16';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -240,8 +240,23 @@
         toast(t('app.notVaultRoot', { n: dirHandle.name }));
       }
       updateConn();
+      updateDest();
     } catch (e) { if (e.name !== 'AbortError') toast(t('app.error', { e: e.message })); }
   }
+
+  // Main-page line showing where notes go, with a button to pick or change the folder.
+  function updateDest() {
+    const inFolder = folderMode() && dirHandle;
+    $('#destName').textContent = inFolder ? '📁 ' + dirHandle.name : t('app.dest.downloads');
+    const btn = $('#destBtn');
+    btn.hidden = !hasFS;
+    btn.textContent = t(inFolder ? 'app.dest.change' : 'app.dest.choose');
+  }
+  $('#destBtn').addEventListener('click', async () => {
+    // Picking a folder here means "save there", so switch away from share / ZIP.
+    if (S.method === 'share' || S.method === 'zip') { S.method = 'auto'; saveSettings(); }
+    await connectVault();
+  });
 
   async function writeFile(root, path, data) {
     const parts = path.split('/');
@@ -256,6 +271,15 @@
     const w = await fh.createWritable();
     await w.write(data); await w.close();
     return [...parts, name].join('/');
+  }
+
+  // "Download Markdown" / "Download all": into the folder chosen in Settings (or on the main page) when one is
+  // connected and the save method allows it; otherwise to the browser's Downloads as self-contained Markdown.
+  const folderMode = () => hasFS && (S.method === 'auto' || S.method === 'folder');
+  async function exportNotes(list) {
+    if (!list.length) return;
+    if (folderMode() && dirHandle && await getDir(true)) return save(list);
+    return downloadMarkdown(list);
   }
 
   async function resolveMethod() {
@@ -544,7 +568,7 @@
       e.preventDefault(); // the retry link sits inside <summary>; don't toggle the box
       c.ocrState = undefined; queueOcr(c);
     } else if (e.target.closest('.a-md')) {
-      await downloadMarkdown([c]);
+      try { await exportNotes([c]); } catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
     } else if (e.target.closest('.a-del')) {
       if (!confirm(t('app.confirmDelete'))) return;
       await SnapDB.del(c.id); await load();
@@ -558,7 +582,7 @@
   });
 
   $('#saveAllBtn').addEventListener('click', async () => {
-    try { await downloadMarkdown(caps.filter(c => !c.saved)); } catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
+    try { await exportNotes(caps.filter(c => !c.saved)); } catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
   });
   $('#aiAllBtn').addEventListener('click', () => aiMany(caps.filter(c => !c.saved && !(c.summary || '').trim())));
   $('#clearDoneBtn').addEventListener('click', async () => {
@@ -639,6 +663,7 @@
     S.notes = cleanFolder(S.notes); S.attach = cleanFolder(S.attach);
     S.incOcr = $('#s-incOcr').checked;
     S.aiAuto = $('#s-aiAuto').checked;
+    updateDest();
     stashApiFields();
     for (const [p, d] of Object.entries(draft)) {
       setKey(p, d.key);
@@ -662,6 +687,9 @@
 
   // ---------------- boot ----------------
   applyI18n();
+  if (hasFS) SnapDB.get('vaultDir').then(h => { if (h && !dirHandle) dirHandle = h; updateDest(); }, () => updateDest());
+  else updateDest();
+  I18N.onChange(updateDest);
   $('#appVersion').textContent = APP_VERSION;
   load().then(() => {
     const q = new URLSearchParams(location.search);

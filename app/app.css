@@ -139,3 +139,7 @@ dialog::backdrop { background: rgba(10, 6, 20, .55); backdrop-filter: blur(3px);
 .auto-ai { display: flex; align-items: center; gap: 8px; justify-content: center; margin: 12px 0 0; font-size: .92rem; font-weight: 600; cursor: pointer; }
 .auto-ai input { width: 18px; height: 18px; accent-color: var(--accent); }
 .auto-ai .spark { color: var(--accent); }
+.dest { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 12px 0 0; font-size: .92rem; }
+.dest-label { color: var(--muted); }
+.dest-name { font-weight: 700; }
+.dest .btn-sm { padding: 4px 12px; font-size: .85rem; }
