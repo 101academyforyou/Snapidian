@@ -189,9 +189,17 @@
 
   // What each service needs in Settings. Model names are suggestions; users can type any model.
   const PROVIDERS = {
-    claude: { key: true, model: 'claude-opus-5-5', models: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'], keyHint: 'sk-ant-…' },
-    openai: { key: true, model: 'gpt-5.5', models: ['gpt-5.5'], keyHint: 'sk-…' },
-    gemini: { key: true, model: 'gemini-3.8-flash', models: ['gemini-3.8-flash'], keyHint: 'AIza…' },
+    // tag: a short description shown next to the name (see set.ai.m.* in i18n.js)
+    claude: { key: true, model: 'claude-opus-5-5', keyHint: 'sk-ant-…', models: [
+      { id: 'claude-opus-5-5', name: 'Claude Opus 5.5', tag: 'best' },
+      { id: 'claude-sonnet-5-5', name: 'Claude Sonnet 5.5', tag: 'balanced' },
+      { id: 'claude-haiku-5-5', name: 'Claude Haiku 5.5', tag: 'fast' }] },
+    openai: { key: true, model: 'gpt-5.5', keyHint: 'sk-…', models: [
+      { id: 'gpt-5.5', name: 'GPT-5.5', tag: 'best' },
+      { id: 'gpt-5.4-mini', name: 'GPT-5.4 mini', tag: 'fast' },
+      { id: 'gpt-5.4-nano', name: 'GPT-5.4 nano', tag: 'cheapest' }] },
+    gemini: { key: true, model: 'gemini-3.8-flash', keyHint: 'AIza…', models: [
+      { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', tag: 'main' }] },
     custom: { key: false, baseUrl: true, model: '', models: [], keyHint: '' }
   };
 
