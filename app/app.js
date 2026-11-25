@@ -4,13 +4,13 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-4';
+  const APP_VERSION = '2026.11.25-6';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
     method: 'auto', vault: '', notes: 'Snapidian', attach: 'Snapidian/attachments',
     prefix: 'Snap-', tags: 'snapidian', incOcr: true, ocrLang: 'chi_tra+eng',
-    aiProvider: 'off', claudeModel: 'claude-opus-5-5', aiAuto: false
+    aiProvider: 'off', claudeModel: 'claude-opus-5-5', aiAuto: false, autoOcr: true
   };
   const SKEY = 'snapidian.settings';
   let S = { ...DEFAULTS };
@@ -92,7 +92,10 @@
     }
     await load();
     toast(t(sharedMsg ? 'app.shared' : 'app.added', { n: imgs.length }));
-    if (S.aiAuto && aiReady()) await aiMany(caps.filter(c => ids.includes(c.id)));
+    const added = () => caps.filter(c => ids.includes(c.id));
+    // Recognize text first, so AI organize (if on) can use it too.
+    if (S.autoOcr) for (const c of added()) await runOcr(c, { quiet: true });
+    if (S.aiAuto && aiReady()) await aiMany(added());
   }
 
   const persist = (() => {
@@ -125,6 +128,7 @@
       bind('.f-title', 'title'); bind('.f-note', 'note'); bind('.f-tags', 'tags'); bind('.f-ocr', 'ocr'); bind('.f-summary', 'summary');
       el.querySelector('.sum-box').hidden = !(c.summary || '').trim();
       el.querySelector('.a-ai').hidden = S.aiProvider === 'off';
+      if (ocrBusy.has(c.id)) queueMicrotask(() => paintOcr(c.id));
       if (c.ocr) el.querySelector('.ocr-box').open = true;
       return el;
     }));
@@ -302,24 +306,37 @@
     workerP.catch(() => { workerP = null; });
     return workerP;
   }
-  async function runOcr(c, btn) {
-    const label = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = t('app.ocr.running', { p: 0 });
-    ocrProgress = p => { btn.textContent = t('app.ocr.running', { p: Math.round(p * 100) }); };
+  // Recognition can outlive the card's DOM (render() rebuilds the list), so progress is tracked per capture.
+  const ocrBusy = new Map(); // id -> progress 0..1
+  const ocrBtn = id => document.querySelector(`.cap[data-id="${id}"] .a-ocr`);
+  function paintOcr(id) {
+    const btn = ocrBtn(id);
+    if (!btn) return;
+    const busy = ocrBusy.has(id);
+    btn.disabled = busy;
+    btn.textContent = busy ? t('app.ocr.running', { p: Math.round(ocrBusy.get(id) * 100) }) : t('app.ocr');
+  }
+  async function runOcr(c, { quiet = false } = {}) {
+    if (ocrBusy.has(c.id)) return false;
+    ocrBusy.set(c.id, 0); paintOcr(c.id);
+    ocrProgress = p => { ocrBusy.set(c.id, p); paintOcr(c.id); };
     try {
       const w = await getWorker();
       const { data } = await w.recognize(c.blob);
       // Tesseract inserts spaces between CJK characters — remove them
       c.ocr = data.text.replace(/([　-鿿＀-￯])\s+(?=[　-鿿＀-￯])/g, '$1').trim();
       await SnapDB.put(c);
-      render();
-      toast(t('app.ocr.done'));
+      if (!quiet) toast(t('app.ocr.done'));
+      return true;
     } catch (e) {
       console.error(e);
       toast(t('app.ocr.fail'));
-      btn.disabled = false; btn.textContent = label;
-    } finally { ocrProgress = null; }
+      return false;
+    } finally {
+      ocrProgress = null;
+      ocrBusy.delete(c.id);
+      render();
+    }
   }
 
   // ---------------- AI organize ----------------
@@ -389,7 +406,7 @@
     } else if (e.target.closest('.a-ai')) {
       if (await runAi(c, e.target.closest('.a-ai'))) { render(); toast(t('app.ai.done')); }
     } else if (e.target.closest('.a-ocr')) {
-      runOcr(c, e.target.closest('.a-ocr'));
+      runOcr(c);
     } else if (e.target.closest('.a-md')) {
       const n = names(c);
       downloadFile(new Blob([buildMarkdown(c, n.img)], { type: 'text/markdown' }), n.note);
@@ -448,6 +465,7 @@
     fields.forEach(k => { $('#s-' + k).value = S[k]; });
     $('#s-incOcr').checked = S.incOcr;
     $('#s-aiAuto').checked = S.aiAuto;
+    $('#s-autoOcr').checked = S.autoOcr;
     $('#s-claudeKey').value = getKey();
     $('#s-lang').value = I18N.lang;
     updateAiUi();
@@ -463,6 +481,7 @@
     S.notes = cleanFolder(S.notes); S.attach = cleanFolder(S.attach);
     S.incOcr = $('#s-incOcr').checked;
     S.aiAuto = $('#s-aiAuto').checked;
+    S.autoOcr = $('#s-autoOcr').checked;
     setKey($('#s-claudeKey').value.trim());
     saveSettings();
     render();

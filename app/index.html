@@ -61,13 +61,13 @@
         <input class="f-tags" data-i18n-placeholder="app.field.tags">
         <label class="sum-box" hidden><span data-i18n="app.field.summary">AI 摘要</span><textarea class="f-summary" rows="2"></textarea></label>
         <details class="ocr-box">
-          <summary data-i18n="app.field.ocr">OCR 文字</summary>
+          <summary data-i18n="app.field.ocr">截圖裡的文字</summary>
           <textarea class="f-ocr" rows="4"></textarea>
         </details>
         <div class="actions">
-          <button class="btn btn-primary a-save" data-i18n="app.save">存入 Obsidian</button>
-          <button class="btn btn-ai a-ai" hidden><span class="spark">✦</span> <span data-i18n="app.ai">AI 整理</span></button>
           <button class="btn a-ocr" data-i18n="app.ocr">辨識文字</button>
+          <button class="btn btn-ai a-ai" hidden><span class="spark">✦</span> <span data-i18n="app.ai">AI 整理</span></button>
+          <button class="btn btn-primary a-save" data-i18n="app.save">存入 Obsidian</button>
           <button class="btn a-md" data-i18n="app.downloadMd">下載 .md</button>
           <button class="btn a-copy" data-i18n="app.copy">複製 Markdown</button>
           <span class="grow"></span>
@@ -137,8 +137,9 @@
         <label class="check" id="s-aiAutoRow"><input type="checkbox" id="s-aiAuto"><span data-i18n="set.ai.auto">加入截圖時自動 AI 整理</span></label>
       </fieldset>
 
-      <label class="check"><input type="checkbox" id="s-incOcr"><span data-i18n="set.includeOcr">筆記中附上 OCR 文字</span></label>
-      <label><span data-i18n="set.ocrLang">OCR 語言</span>
+      <label class="check"><input type="checkbox" id="s-autoOcr"><span data-i18n="set.autoOcr">加入截圖時自動辨識文字</span></label>
+      <label class="check"><input type="checkbox" id="s-incOcr"><span data-i18n="set.includeOcr">把截圖裡的文字一起放進筆記</span></label>
+      <label><span data-i18n="set.ocrLang">文字辨識語言</span>
         <select id="s-ocrLang">
           <option value="chi_tra+eng">繁體中文 + English</option>
           <option value="chi_sim+eng">简体中文 + English</option>
