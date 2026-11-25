@@ -6,12 +6,19 @@
   // ---------------- settings ----------------
   const DEFAULTS = {
     method: 'auto', vault: '', notes: 'Snapidian', attach: 'Snapidian/attachments',
-    prefix: 'Snap-', tags: 'snapidian', incOcr: true, ocrLang: 'chi_tra+eng'
+    prefix: 'Snap-', tags: 'snapidian', incOcr: true, ocrLang: 'chi_tra+eng',
+    aiProvider: 'off', claudeModel: 'claude-opus-5-5', aiAuto: false
   };
   const SKEY = 'snapidian.settings';
   let S = { ...DEFAULTS };
   try { Object.assign(S, JSON.parse(localStorage.getItem(SKEY) || '{}')); } catch (e) {}
   const saveSettings = () => { try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch (e) {} };
+
+  // The Claude key is kept apart from the other settings and never leaves this browser except to call the Claude API.
+  const KKEY = 'snapidian.claudeKey';
+  const getKey = () => { try { return localStorage.getItem(KKEY) || ''; } catch (e) { return ''; } };
+  const setKey = v => { try { v ? localStorage.setItem(KKEY, v) : localStorage.removeItem(KKEY); } catch (e) {} };
+  const aiReady = () => S.aiProvider === 'claude' ? !!getKey() : S.aiProvider === 'chrome' ? SnapAI.hasChrome() : false;
 
   const hasFS = 'showDirectoryPicker' in window;
   let dirHandle = null;
@@ -59,6 +66,7 @@
     const lines = ['---', `created: ${isoLocal(d)}`, 'source: Snapidian'];
     if (tags.length) { lines.push('tags:'); tags.forEach(x => lines.push(`  - ${x}`)); }
     lines.push('---', '', `# ${title}`, '', `![[${imgPath}]]`, '');
+    if ((c.summary || '').trim()) lines.push(`## ${t('md.summary')}`, c.summary.trim(), '');
     if (c.note.trim()) lines.push(`## ${t('md.note')}`, c.note.trim(), '');
     if (S.incOcr && c.ocr.trim()) lines.push(`## ${t('md.ocr')}`, ...c.ocr.trim().split('\n').map(l => '> ' + l), '');
     return lines.join('\n');
@@ -73,12 +81,15 @@
   async function addFiles(files, sharedMsg) {
     const imgs = [...files].filter(f => f.type.startsWith('image/'));
     if (!imgs.length) return;
+    const ids = [];
     for (const f of imgs) {
       const c = SnapDB.newCapture(f, f.name);
+      ids.push(c.id);
       await SnapDB.put(c);
     }
     await load();
     toast(t(sharedMsg ? 'app.shared' : 'app.added', { n: imgs.length }));
+    if (S.aiAuto && aiReady()) await aiMany(caps.filter(c => ids.includes(c.id)));
   }
 
   const persist = (() => {
@@ -105,10 +116,12 @@
       el.querySelector('.status').textContent = t(c.saved ? 'app.status.saved' : 'app.status.pending');
       const bind = (sel, key) => {
         const input = el.querySelector(sel);
-        input.value = c[key];
+        input.value = c[key] ?? '';
         input.addEventListener('input', () => { c[key] = input.value; persist(c); });
       };
-      bind('.f-title', 'title'); bind('.f-note', 'note'); bind('.f-tags', 'tags'); bind('.f-ocr', 'ocr');
+      bind('.f-title', 'title'); bind('.f-note', 'note'); bind('.f-tags', 'tags'); bind('.f-ocr', 'ocr'); bind('.f-summary', 'summary');
+      el.querySelector('.sum-box').hidden = !(c.summary || '').trim();
+      el.querySelector('.a-ai').hidden = S.aiProvider === 'off';
       if (c.ocr) el.querySelector('.ocr-box').open = true;
       return el;
     }));
@@ -119,6 +132,7 @@
     $('#count').textContent = t('app.count', { n: caps.length, p: pending });
     $('#saveAllBtn').disabled = pending === 0;
     $('#clearDoneBtn').hidden = pending === caps.length;
+    $('#aiAllBtn').hidden = S.aiProvider === 'off' || pending === 0;
   }
 
   // ---------------- saving ----------------
@@ -267,6 +281,52 @@
     } finally { ocrProgress = null; }
   }
 
+  // ---------------- AI organize ----------------
+  const aiBusy = new Set();
+  function aiErrorText(e) {
+    if (e instanceof SnapAI.AIError) {
+      const key = 'app.ai.err.' + e.code;
+      return e.code === 'api' ? t(key, { e: e.message }) : t(key);
+    }
+    return t('app.ai.err.api', { e: e.message || String(e) });
+  }
+  async function runAi(c, btn) {
+    if (aiBusy.has(c.id)) return;
+    if (!aiReady()) { toast(t(S.aiProvider === 'claude' ? 'app.ai.err.no_key' : S.aiProvider === 'off' ? 'app.ai.err.off' : 'app.ai.err.chrome_unsupported')); return false; }
+    aiBusy.add(c.id);
+    btn = btn || document.querySelector(`.cap[data-id="${c.id}"] .a-ai`);
+    const label = btn && btn.innerHTML;
+    const setLabel = s => { if (btn) btn.textContent = s; };
+    if (btn) btn.disabled = true;
+    setLabel(t('app.ai.running'));
+    try {
+      const r = await SnapAI.organize(S.aiProvider, {
+        blob: c.blob, ocr: c.ocr, lang: I18N.lang, apiKey: getKey(), model: S.claudeModel,
+        onProgress: p => setLabel(t('app.ai.download', { p: Math.round(p * 100) }))
+      });
+      if (!c.title.trim()) c.title = r.title;
+      c.summary = r.summary;
+      c.tags = parseTags(c.tags + ' ' + r.tags.join(' ')).join(' ');
+      if (!c.ocr.trim() && r.text) c.ocr = r.text;
+      await SnapDB.put(c);
+      return true;
+    } catch (e) {
+      console.error(e);
+      toast(aiErrorText(e));
+      return false;
+    } finally {
+      aiBusy.delete(c.id);
+      if (btn) { btn.disabled = false; btn.innerHTML = label; }
+    }
+  }
+  async function aiMany(list) {
+    let ok = 0;
+    for (const c of list) {
+      if (await runAi(c)) { ok++; render(); } else break; // stop on the first error so a bad key isn't retried for every card
+    }
+    if (ok) toast(t('app.ai.done'));
+  }
+
   // ---------------- events ----------------
   $('#fileInput').addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
   const drop = $('#drop');
@@ -285,6 +345,8 @@
     if (!c) return;
     if (e.target.closest('.a-save')) {
       try { await save([c]); } catch (err) { toast(t('app.error', { e: err.message })); }
+    } else if (e.target.closest('.a-ai')) {
+      if (await runAi(c, e.target.closest('.a-ai'))) { render(); toast(t('app.ai.done')); }
     } else if (e.target.closest('.a-ocr')) {
       runOcr(c, e.target.closest('.a-ocr'));
     } else if (e.target.closest('.a-copy')) {
@@ -305,6 +367,7 @@
   $('#saveAllBtn').addEventListener('click', async () => {
     try { await save(caps.filter(c => !c.saved)); } catch (err) { toast(t('app.error', { e: err.message })); }
   });
+  $('#aiAllBtn').addEventListener('click', () => aiMany(caps.filter(c => !c.saved && !(c.summary || '').trim())));
   $('#clearDoneBtn').addEventListener('click', async () => {
     for (const c of caps.filter(c => c.saved)) await SnapDB.del(c.id);
     await load();
@@ -316,7 +379,19 @@
 
   // settings dialog
   const dlg = $('#settings');
-  const fields = ['method', 'vault', 'notes', 'attach', 'prefix', 'tags', 'ocrLang'];
+  const fields = ['method', 'vault', 'notes', 'attach', 'prefix', 'tags', 'ocrLang', 'aiProvider', 'claudeModel'];
+  async function updateAiUi() {
+    const p = $('#s-aiProvider').value;
+    $('#s-claudeBox').hidden = p !== 'claude';
+    $('#s-aiAutoRow').hidden = p === 'off';
+    const hint = $('#s-aiHint');
+    if (p === 'off') { hint.textContent = ''; return; }
+    if (p === 'claude') { hint.textContent = t('set.ai.hint.claude'); return; }
+    hint.textContent = t('set.ai.hint.chrome');
+    const st = await SnapAI.chromeStatus(I18N.lang);
+    if ($('#s-aiProvider').value === 'chrome') hint.textContent = t('set.ai.hint.chrome') + ' ' + t('set.ai.chrome.status', { s: t('set.ai.chrome.' + st.state) });
+  }
+  $('#s-aiProvider').addEventListener('change', updateAiUi);
   function updateConn() {
     const el = $('#s-conn'), btn = $('#s-connect');
     if (!hasFS) { el.textContent = t('set.noFs'); btn.hidden = true; return; }
@@ -325,7 +400,10 @@
   $('#settingsBtn').addEventListener('click', async () => {
     fields.forEach(k => { $('#s-' + k).value = S[k]; });
     $('#s-incOcr').checked = S.incOcr;
+    $('#s-aiAuto').checked = S.aiAuto;
+    $('#s-claudeKey').value = getKey();
     $('#s-lang').value = I18N.lang;
+    updateAiUi();
     if (hasFS && !dirHandle) dirHandle = await SnapDB.get('vaultDir').catch(() => null) || null;
     updateConn();
     dlg.showModal();
@@ -336,7 +414,10 @@
     fields.forEach(k => { S[k] = $('#s-' + k).value.trim(); });
     S.notes = cleanFolder(S.notes); S.attach = cleanFolder(S.attach);
     S.incOcr = $('#s-incOcr').checked;
+    S.aiAuto = $('#s-aiAuto').checked;
+    setKey($('#s-claudeKey').value.trim());
     saveSettings();
+    render();
     toast(t('set.saved'));
   });
   dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });

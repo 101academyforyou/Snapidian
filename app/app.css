@@ -116,3 +116,11 @@ dialog::backdrop { background: rgba(10, 6, 20, .55); backdrop-filter: blur(3px);
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
 .toast a { color: inherit; font-weight: 700; }
+
+.btn-ai { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); color: var(--accent); }
+.btn-ai .spark { font-size: .85em; }
+.sum-box { display: grid; gap: 4px; font-size: .85rem; font-weight: 600; color: var(--muted); }
+.sum-box textarea { font-weight: 400; color: var(--text); }
+.ai-set { border: 1px solid var(--border); border-radius: 14px; padding: 12px; margin: 0; display: grid; gap: 10px; }
+.ai-set legend { padding: 0 6px; font-weight: 700; font-size: .9rem; }
+.ai-sub { display: grid; gap: 10px; }

@@ -62,6 +62,8 @@
       'faq2.a': '桌面版 Chrome / Edge 可以連結你的 Vault 資料夾直接寫入；手機上可透過系統分享傳給 Obsidian，或下載包含筆記與圖片的 ZIP 解壓到 Vault。',
       'faq3.q': 'OCR 會把圖片上傳嗎？',
       'faq3.a': '不會。OCR 在瀏覽器本機執行，第一次使用時只會下載辨識模型。',
+      'faq5.q': 'AI 整理會用到哪個 AI？',
+      'faq5.a': 'AI 整理是選用功能，預設關閉。你可以選 Chrome 內建 AI（桌面版 Chrome，在電腦本機執行、免費），或填入自己的 Claude API 金鑰（截圖會傳給 Anthropic 分析，依用量計費）。AI 會產生標題、摘要、標籤並擷取文字。',
       'faq4.q': '筆記格式可以自訂嗎？',
       'faq4.a': '可以設定筆記資料夾、附件資料夾、檔名前綴、預設標籤與是否附上 OCR 文字。',
 
@@ -127,6 +129,7 @@
       'set.saved': '設定已儲存',
 
       'md.note': '筆記',
+      'md.summary': 'AI 摘要',
       'md.ocr': '辨識文字',
 
       // ---------- iPhone guide ----------
@@ -199,7 +202,42 @@
       'ip.a5x': '可以。用 Snapidian App 選取這些截圖，再一起整理、存入 Obsidian。',
 
       'ip.back': '← 回到首頁',
-      'ip.toApp': '改用 Snapidian App 整理既有截圖'
+      'ip.toApp': '改用 Snapidian App 整理既有截圖',
+
+      // ---------- AI ----------
+      'app.ai': 'AI 整理',
+      'app.ai.running': 'AI 整理中…',
+      'app.ai.download': '下載 AI 模型… {p}%',
+      'app.ai.done': 'AI 整理完成',
+      'app.ai.allBtn': '全部 AI 整理',
+      'app.field.summary': 'AI 摘要',
+      'app.ai.err.no_key': '請先到設定填入 Claude API 金鑰',
+      'app.ai.err.bad_key': 'Claude API 金鑰無效或沒有權限，請到設定確認',
+      'app.ai.err.rate_limit': '請求太頻繁，請稍後再試',
+      'app.ai.err.network': '連不上 Claude，請檢查網路',
+      'app.ai.err.refusal': 'AI 拒絕處理這張截圖',
+      'app.ai.err.api': 'AI 發生錯誤：{e}',
+      'app.ai.err.chrome_unsupported': '這個瀏覽器沒有內建 AI，請改用桌面版 Chrome 或 Claude',
+      'app.ai.err.chrome_unavailable': '這台裝置無法使用 Chrome 內建 AI（硬體或設定不支援）',
+      'app.ai.err.chrome_need_ocr': 'Chrome 內建 AI 在這台裝置看不懂圖片，請先按「辨識文字」',
+      'app.ai.err.off': '請先到設定選擇 AI 服務',
+
+      'set.ai': 'AI 整理',
+      'set.ai.off': '關閉',
+      'set.ai.chrome': 'Chrome 內建 AI（免費、在本機執行）',
+      'set.ai.claude': 'Claude（需要 API 金鑰）',
+      'set.ai.hint.chrome': '使用桌面版 Chrome 內建的 Gemini Nano，截圖不會離開你的電腦。第一次使用會下載模型。',
+      'set.ai.hint.claude': '截圖會傳送到 Anthropic 的 Claude 進行分析，用量依 Anthropic API 價格計費。金鑰只存在這個瀏覽器。',
+      'set.ai.chrome.status': 'Chrome 內建 AI：{s}',
+      'set.ai.chrome.available': '可以使用',
+      'set.ai.chrome.downloadable': '可以使用（第一次會下載模型）',
+      'set.ai.chrome.downloading': '模型下載中',
+      'set.ai.chrome.unavailable': '這台裝置不支援',
+      'set.ai.chrome.unsupported': '這個瀏覽器沒有內建 AI',
+      'set.ai.key': 'Claude API 金鑰',
+      'set.ai.keyHint': '到 console.anthropic.com 建立。請勿在共用電腦上儲存。',
+      'set.ai.model': 'Claude 模型',
+      'set.ai.auto': '加入截圖時自動 AI 整理'
     },
     en: {
       'meta.title': 'Snapidian — Turn screenshots into your second brain',
@@ -260,6 +298,8 @@
       'faq2.a': 'On desktop Chrome / Edge you can connect your vault folder and write directly. On mobile, use the system share sheet to send to Obsidian, or download a ZIP with the note and image and unzip it into your vault.',
       'faq3.q': 'Does OCR upload my images?',
       'faq3.a': 'No. OCR runs locally in your browser; only the recognition model is downloaded on first use.',
+      'faq5.q': 'Which AI does “AI organize” use?',
+      'faq5.a': 'AI organize is optional and off by default. Choose Chrome built-in AI (desktop Chrome, runs on your computer, free) or add your own Claude API key (screenshots are sent to Anthropic for analysis and billed by usage). The AI writes a title, summary and tags and extracts the text.',
       'faq4.q': 'Can I customize the note format?',
       'faq4.a': 'Yes — notes folder, attachments folder, filename prefix, default tags and whether to include OCR text.',
 
@@ -324,6 +364,7 @@
       'set.saved': 'Settings saved',
 
       'md.note': 'Notes',
+      'md.summary': 'AI summary',
       'md.ocr': 'Recognized text',
 
       'nav.iphone': 'iPhone one-tap',
@@ -395,7 +436,41 @@
       'ip.a5x': 'Pick them in the Snapidian App, organize them together and save them to Obsidian.',
 
       'ip.back': '← Back to home',
-      'ip.toApp': 'Use the Snapidian App for existing screenshots'
+      'ip.toApp': 'Use the Snapidian App for existing screenshots',
+
+      'app.ai': 'AI organize',
+      'app.ai.running': 'Organizing…',
+      'app.ai.download': 'Downloading AI model… {p}%',
+      'app.ai.done': 'AI organize finished',
+      'app.ai.allBtn': 'AI organize all',
+      'app.field.summary': 'AI summary',
+      'app.ai.err.no_key': 'Add your Claude API key in Settings first',
+      'app.ai.err.bad_key': 'Claude API key is invalid or lacks permission — check Settings',
+      'app.ai.err.rate_limit': 'Too many requests — try again shortly',
+      'app.ai.err.network': 'Could not reach Claude — check your connection',
+      'app.ai.err.refusal': 'The AI declined to process this screenshot',
+      'app.ai.err.api': 'AI error: {e}',
+      'app.ai.err.chrome_unsupported': 'This browser has no built-in AI — use desktop Chrome or Claude',
+      'app.ai.err.chrome_unavailable': 'Chrome built-in AI is not available on this device',
+      'app.ai.err.chrome_need_ocr': 'Chrome built-in AI cannot read images on this device — tap “Recognize text” first',
+      'app.ai.err.off': 'Choose an AI service in Settings first',
+
+      'set.ai': 'AI organize',
+      'set.ai.off': 'Off',
+      'set.ai.chrome': 'Chrome built-in AI (free, on device)',
+      'set.ai.claude': 'Claude (API key required)',
+      'set.ai.hint.chrome': 'Uses Gemini Nano built into desktop Chrome; screenshots never leave your computer. The model downloads on first use.',
+      'set.ai.hint.claude': 'Screenshots are sent to Anthropic’s Claude for analysis and billed at Anthropic API rates. Your key is stored only in this browser.',
+      'set.ai.chrome.status': 'Chrome built-in AI: {s}',
+      'set.ai.chrome.available': 'ready',
+      'set.ai.chrome.downloadable': 'ready (model downloads on first use)',
+      'set.ai.chrome.downloading': 'model downloading',
+      'set.ai.chrome.unavailable': 'not supported on this device',
+      'set.ai.chrome.unsupported': 'not available in this browser',
+      'set.ai.key': 'Claude API key',
+      'set.ai.keyHint': 'Create one at console.anthropic.com. Don’t save it on a shared computer.',
+      'set.ai.model': 'Claude model',
+      'set.ai.auto': 'Organize with AI when screenshots are added'
     }
   };
 

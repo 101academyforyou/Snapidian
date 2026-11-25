@@ -17,6 +17,9 @@ Snapidian 是一個網站 + 可安裝的 App（PWA），支援繁體中文 / Eng
   - 直接寫入 Vault 資料夾（桌面版 Chrome / Edge，File System Access API），寫完可用 `obsidian://` 開啟
   - 系統分享（手機分享給 Obsidian 或其他 App）
   - 下載 ZIP（含資料夾結構，解壓到 Vault 即可）
+- ✨ **AI 整理（選用，預設關閉）**：自動產生標題、摘要、標籤並擷取文字
+  - **Chrome 內建 AI**：桌面版 Chrome 的 Gemini Nano（Prompt API），在本機執行、免費
+  - **Claude**：填入自己的 Anthropic API 金鑰（只存在瀏覽器），截圖會傳給 Claude 分析；SDK 打包在 `app/vendor/`
 - 🔒 **隱私**：資料存在裝置的 IndexedDB，無伺服器、無帳號
 - 📱 **離線可用、可安裝**（Service Worker + Web App Manifest）
 - 🌐 **中英雙語**：自動偵測，可隨時切換
