@@ -131,9 +131,12 @@
     if (st.state === 'unavailable') throw new AIError('chrome_unavailable');
     if (!st.withImage && !ocr) throw new AIError('chrome_need_ocr');
 
+    // Chrome also fires a 'downloadprogress' event (100%) when the model is already on the device, so only
+    // report progress when a download is actually needed.
+    const downloading = st.state === 'downloadable' || st.state === 'downloading';
     const session = await LM().create({
       ...st.opts,
-      monitor(m) { m.addEventListener('downloadprogress', e => onProgress && onProgress(e.loaded)); }
+      monitor(m) { if (downloading) m.addEventListener('downloadprogress', e => onProgress && onProgress(e.loaded)); }
     });
     try {
       const content = [{ type: 'text', value: instructions(lang, ocr) + '\nReply with JSON only.' }];
