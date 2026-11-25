@@ -38,7 +38,7 @@
     newCapture(blob, name) {
       return {
         id: uid(), blob, type: blob.type || 'image/png', name: name || '',
-        title: '', note: '', tags: '', ocr: '', saved: false,
+        title: '', note: '', tags: '', ocr: '', summary: '', saved: false,
         createdAt: Date.now() + Math.random() // keeps batch order stable
       };
     }

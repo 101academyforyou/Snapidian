@@ -43,6 +43,7 @@
       <span id="count" class="muted"></span>
       <span class="grow"></span>
       <button class="btn btn-ghost" id="clearDoneBtn" data-i18n="app.clearDone">清除已存入</button>
+      <button class="btn" id="aiAllBtn" hidden data-i18n="app.ai.allBtn">全部 AI 整理</button>
       <button class="btn btn-primary" id="saveAllBtn" data-i18n="app.saveAll">全部存入 Obsidian</button>
     </div>
 
@@ -57,12 +58,14 @@
         <input class="f-title" data-i18n-placeholder="app.field.title">
         <textarea class="f-note" rows="2" data-i18n-placeholder="app.field.note"></textarea>
         <input class="f-tags" data-i18n-placeholder="app.field.tags">
+        <label class="sum-box" hidden><span data-i18n="app.field.summary">AI 摘要</span><textarea class="f-summary" rows="2"></textarea></label>
         <details class="ocr-box">
           <summary data-i18n="app.field.ocr">OCR 文字</summary>
           <textarea class="f-ocr" rows="4"></textarea>
         </details>
         <div class="actions">
           <button class="btn btn-primary a-save" data-i18n="app.save">存入 Obsidian</button>
+          <button class="btn btn-ai a-ai" hidden><span class="spark">✦</span> <span data-i18n="app.ai">AI 整理</span></button>
           <button class="btn a-ocr" data-i18n="app.ocr">辨識文字</button>
           <button class="btn a-copy" data-i18n="app.copy">複製 Markdown</button>
           <span class="grow"></span>
@@ -108,6 +111,30 @@
         <label><span data-i18n="set.prefix">檔名前綴</span><input id="s-prefix"></label>
         <label><span data-i18n="set.tags">預設標籤</span><input id="s-tags"></label>
       </div>
+      <fieldset class="ai-set">
+        <legend data-i18n="set.ai">AI 整理</legend>
+        <select id="s-aiProvider" aria-label="AI">
+          <option value="off" data-i18n="set.ai.off"></option>
+          <option value="chrome" data-i18n="set.ai.chrome"></option>
+          <option value="claude" data-i18n="set.ai.claude"></option>
+        </select>
+        <small class="muted" id="s-aiHint"></small>
+        <div id="s-claudeBox" class="ai-sub">
+          <label><span data-i18n="set.ai.key">Claude API 金鑰</span>
+            <input id="s-claudeKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-...">
+            <small class="muted" data-i18n="set.ai.keyHint"></small>
+          </label>
+          <label><span data-i18n="set.ai.model">Claude 模型</span>
+            <select id="s-claudeModel">
+              <option value="claude-opus-5-5">Claude Opus 5.5</option>
+              <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+              <option value="claude-haiku-5-5">Claude Haiku 5.5</option>
+            </select>
+          </label>
+        </div>
+        <label class="check" id="s-aiAutoRow"><input type="checkbox" id="s-aiAuto"><span data-i18n="set.ai.auto">加入截圖時自動 AI 整理</span></label>
+      </fieldset>
+
       <label class="check"><input type="checkbox" id="s-incOcr"><span data-i18n="set.includeOcr">筆記中附上 OCR 文字</span></label>
       <label><span data-i18n="set.ocrLang">OCR 語言</span>
         <select id="s-ocrLang">
@@ -126,6 +153,7 @@
   <script src="../assets/i18n.js"></script>
   <script src="db.js"></script>
   <script src="zip.js"></script>
+  <script src="ai.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

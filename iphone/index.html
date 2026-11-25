@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-Hant" data-title-key="ip.meta">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>iPhone 一鍵截圖存成 Obsidian 筆記 — Snapidian</title>
+  <meta name="description" content="輕敲 iPhone 背面兩下，自動截圖、辨識文字並存成 Obsidian Markdown 筆記。Double-tap the back of your iPhone to save screenshots as Obsidian notes.">
+  <meta name="theme-color" content="#7c3aed">
+  <link rel="canonical" href="https://snapidian.onepointzeroone.org/iphone/">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://snapidian.onepointzeroone.org/iphone/">
+  <meta property="og:site_name" content="Snapidian">
+  <meta property="og:title" content="iPhone 一鍵截圖存成 Obsidian 筆記 — Snapidian">
+  <meta property="og:description" content="輕敲手機背面兩下，截圖直接變成 Obsidian 筆記。">
+  <meta property="og:image" content="https://snapidian.onepointzeroone.org/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/site.css">
+  <link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap">
+      <a class="logo" href="../"><img src="../assets/icon.svg" alt="">Snapidian</a>
+      <nav class="nav-links">
+        <a href="../#features" data-i18n="nav.features">功能</a>
+        <a href="../#how" data-i18n="nav.how">使用方式</a>
+        <a href="./" aria-current="page" data-i18n="nav.iphone">iPhone 一鍵截圖</a>
+      </nav>
+      <span class="spacer"></span>
+      <button class="btn btn-sm lang-btn" id="langBtn" data-i18n="lang.toggle">EN</button>
+      <a class="btn btn-sm btn-primary" href="../app/" data-i18n="nav.open">開啟 App</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero guide-hero">
+      <div class="wrap">
+        <span class="badge" data-i18n="ip.badge"></span>
+        <h1 data-i18n="ip.title"></h1>
+        <p class="tagline" data-i18n="ip.sub"></p>
+        <ol class="flow" aria-label="flow">
+          <li><span class="flow-ic">👆</span><span data-i18n="ip.flow1"></span></li>
+          <li><span class="flow-ic">📸</span><span data-i18n="ip.flow2"></span></li>
+          <li><span class="flow-ic">📝</span><span data-i18n="ip.flow3"></span></li>
+          <li><span class="flow-ic">💎</span><span data-i18n="ip.flow4"></span></li>
+        </ol>
+        <a class="btn btn-primary btn-lg" href="#setup" data-i18n="ip.cta"></a>
+      </div>
+    </section>
+
+    <section class="guide">
+      <div class="wrap narrow">
+        <div class="callout">
+          <h2 data-i18n="ip.why.title"></h2>
+          <p data-i18n="ip.why.desc"></p>
+        </div>
+
+        <h2 class="g-h2" data-i18n="ip.need.title"></h2>
+        <ul class="checklist">
+          <li data-i18n="ip.need1"></li>
+          <li data-i18n="ip.need2"></li>
+          <li data-i18n="ip.need3"></li>
+        </ul>
+
+        <ol class="g-steps" id="setup">
+          <li class="g-step">
+            <h3 data-i18n="ip.s1.title"></h3>
+            <p data-i18n="ip.s1.desc"></p>
+          </li>
+
+          <li class="g-step">
+            <h3 data-i18n="ip.s2.title"></h3>
+            <p data-i18n="ip.s2.desc"></p>
+            <ol class="actions">
+              <li class="act c-blue"><b data-i18n="ip.a1"></b><small>Take Screenshot</small><p data-i18n="ip.a1.d"></p></li>
+              <li class="act c-yellow"><b data-i18n="ip.a2"></b><small>Extract Text from Image</small><p data-i18n="ip.a2.d"></p></li>
+              <li class="act c-gray"><b data-i18n="ip.a3"></b><small>Format Date</small><p data-i18n="ip.a3.d"></p><code>yyyyMMdd-HHmmss</code></li>
+              <li class="act c-blue"><b data-i18n="ip.a4"></b><small>Set Name</small><p data-i18n="ip.a4.d"></p></li>
+              <li class="act c-cyan"><b data-i18n="ip.a5"></b><small>Save File</small><p data-i18n="ip.a5.d"></p></li>
+              <li class="act c-yellow"><b data-i18n="ip.a6"></b><small>Text</small><p data-i18n="ip.a6.d"></p></li>
+              <li class="act c-blue"><b data-i18n="ip.a7"></b><small>Set Name</small><p data-i18n="ip.a7.d"></p></li>
+              <li class="act c-cyan"><b data-i18n="ip.a8"></b><small>Save File</small><p data-i18n="ip.a8.d"></p></li>
+            </ol>
+
+            <div class="tpl">
+              <div class="tpl-head">
+                <strong data-i18n="ip.tpl.title"></strong>
+                <button class="btn btn-sm" id="copyTpl" data-i18n="ip.tpl.copy"></button>
+              </div>
+              <pre class="code" id="tpl"></pre>
+              <p class="muted small" data-i18n="ip.tpl.hint"></p>
+            </div>
+          </li>
+
+          <li class="g-step">
+            <h3 data-i18n="ip.s3.title"></h3>
+            <p data-i18n="ip.s3.desc"></p>
+            <p class="muted small" data-i18n="ip.s3.alt"></p>
+          </li>
+
+          <li class="g-step">
+            <h3 data-i18n="ip.s4.title"></h3>
+            <p data-i18n="ip.s4.desc"></p>
+          </li>
+        </ol>
+
+        <div class="callout soft">
+          <h2 data-i18n="ip.opt.title"></h2>
+          <p data-i18n="ip.opt.desc"></p>
+        </div>
+
+        <h2 class="g-h2" data-i18n="ip.faq.title"></h2>
+        <div class="faq">
+          <details><summary data-i18n="ip.q1"></summary><p data-i18n="ip.a1x"></p></details>
+          <details><summary data-i18n="ip.q2"></summary><p data-i18n="ip.a2x"></p></details>
+          <details><summary data-i18n="ip.q3"></summary><p data-i18n="ip.a3x"></p></details>
+          <details><summary data-i18n="ip.q4"></summary><p data-i18n="ip.a4x"></p></details>
+          <details><summary data-i18n="ip.q5"></summary><p data-i18n="ip.a5x"></p></details>
+        </div>
+
+        <div class="g-foot">
+          <a class="btn" href="../" data-i18n="ip.back"></a>
+          <a class="btn btn-primary" href="../app/" data-i18n="ip.toApp"></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <a class="logo" href="../"><img src="../assets/icon.svg" alt="">Snapidian</a>
+      <div data-i18n="footer.made"></div>
+      <div>© 2026 Snapidian</div>
+    </div>
+  </footer>
+
+  <script src="../assets/i18n.js"></script>
+  <script>
+    const TPL = {
+      zh: '---\ncreated: [格式化的日期]\nsource: Snapidian\ntags:\n  - snapidian\n  - iphone\n---\n\n![[Snap-[格式化的日期].png]]\n\n## 筆記\n\n\n## 辨識文字\n[影像中的文字]\n',
+      en: '---\ncreated: [Formatted Date]\nsource: Snapidian\ntags:\n  - snapidian\n  - iphone\n---\n\n![[Snap-[Formatted Date].png]]\n\n## Notes\n\n\n## Recognized text\n[Text from Image]\n'
+    };
+    const tplEl = document.getElementById('tpl');
+    const syncTpl = l => { tplEl.textContent = TPL[l]; };
+    I18N.apply();
+    syncTpl(I18N.lang);
+    I18N.onChange(syncTpl);
+    document.getElementById('langBtn').addEventListener('click', () => I18N.toggle());
+    const copyBtn = document.getElementById('copyTpl');
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(TPL[I18N.lang]);
+        copyBtn.textContent = I18N.t('ip.tpl.copied');
+        setTimeout(() => { copyBtn.textContent = I18N.t('ip.tpl.copy'); }, 1800);
+      } catch (e) {
+        const r = document.createRange(); r.selectNodeContents(tplEl);
+        const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      }
+    });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('../sw.js').catch(() => {});
+  </script>
+</body>
+</html>
