@@ -23,7 +23,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-20';
+  const APP_VERSION = '2026.11.25-22';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -530,6 +530,25 @@
     if (!$('#settings').open) { $('#settingsBtn').click(); $('#s-aiNeed').textContent = why; $('#s-aiNeed').hidden = false; }
   }
 
+  // Model picker: a list of known models for the service plus "Other (type a name)", which reveals a text
+  // field. The text field always holds the chosen model, so callers read the model from it.
+  const OTHER_MODEL = '__other';
+  function fillModelPicker(sel, input, p, current) {
+    const models = (SnapAI.PROVIDERS[p] || {}).models || [];
+    const opts = models.map(m => Object.assign(document.createElement('option'), { value: m.id, textContent: `${m.name}（${t('set.ai.m.' + m.tag)}）` }));
+    opts.push(Object.assign(document.createElement('option'), { value: OTHER_MODEL, textContent: t('set.ai.m.other') }));
+    sel.replaceChildren(...opts);
+    sel.hidden = !models.length; // "other service": the models differ per service, so only the text field
+    const known = models.some(m => m.id === current);
+    sel.value = known ? current : OTHER_MODEL;
+    input.value = current || '';
+    input.hidden = known && models.length > 0;
+    sel.onchange = () => {
+      if (sel.value === OTHER_MODEL) { input.hidden = false; input.value = ''; input.focus(); }
+      else { input.hidden = true; input.value = sel.value; }
+    };
+  }
+
   // Small window to set up one AI service (key, model, and URL for "other service").
   const PROVIDER_NAMES = { claude: 'Claude', openai: 'ChatGPT', gemini: 'Gemini' };
   const providerName = p => PROVIDER_NAMES[p] || t('app.ai.switch.custom');
@@ -546,7 +565,7 @@
     $('#as-key').placeholder = meta.keyHint || t('set.ai.keyOptional');
     $('#as-keyHint').textContent = t('set.ai.keyHint.' + p);
     $('#as-model').value = modelFor(p);
-    $('#as-models').replaceChildren(...meta.models.map(m => Object.assign(document.createElement('option'), { value: m })));
+    fillModelPicker($('#as-modelSel'), $('#as-model'), p, modelFor(p));
     $('#aiSetup').showModal();
     (meta.baseUrl && !S.customBaseUrl ? $('#as-base') : $('#as-key')).focus();
   }
@@ -661,6 +680,12 @@
     else askToSetUp(p);
   });
   $('#aiAllBtn').addEventListener('click', () => aiMany(caps.filter(c => !c.saved && !(c.summary || '').trim())));
+  $('#clearAllBtn').addEventListener('click', async () => {
+    if (!caps.length || !confirm(t('app.confirmClearAll', { n: caps.length }))) return;
+    for (const c of caps) await SnapDB.del(c.id);
+    await load();
+    toast(t('app.clearedAll'));
+  });
   $('#clearDoneBtn').addEventListener('click', async () => {
     for (const c of caps.filter(c => c.saved)) await SnapDB.del(c.id);
     await load();
@@ -692,7 +717,7 @@
       $('#s-baseUrlRow').hidden = !meta.baseUrl;
       $('#s-apiKey').placeholder = meta.keyHint || t('set.ai.keyOptional');
       $('#s-keyHint').textContent = t('set.ai.keyHint.' + p);
-      $('#s-modelList').replaceChildren(...meta.models.map(m => Object.assign(document.createElement('option'), { value: m })));
+      fillModelPicker($('#s-modelSel'), $('#s-model'), p, d.model);
     }
     const hint = $('#s-aiHint');
     if (p === 'off') { hint.textContent = ''; return; }
