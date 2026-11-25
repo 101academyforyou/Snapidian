@@ -15,7 +15,7 @@
   function instructions(lang, ocrText) {
     const out = lang === 'zh' ? 'Traditional Chinese (繁體中文, Taiwan usage)' : 'English';
     return [
-      'You organize a phone screenshot into an Obsidian note.',
+      'You organize a phone screenshot into a Markdown note.',
       `Write "title", "summary" and "tags" in ${out}. Tags may stay in English when they are product names or common technical terms.`,
       'Tags: 3-6 short topic tags, lowercase where the script has case, no "#", use "-" instead of spaces.',
       '"text": transcribe the readable text in the screenshot as-is (keep its original language), in reading order, one paragraph or list item per line. Skip status-bar clutter such as time, battery and signal. Use an empty string if there is no meaningful text.',

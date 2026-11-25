@@ -23,17 +23,27 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-9';
+  const APP_VERSION = '2026.11.25-10';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
     method: 'auto', vault: '', notes: 'Snapidian', attach: 'Snapidian/attachments',
     prefix: 'Snap-', tags: 'snapidian', incOcr: true, ocrLang: 'chi_tra+eng',
-    aiProvider: 'off', claudeModel: 'claude-opus-5-5', aiAuto: false
+    aiProvider: 'chrome', claudeModel: 'claude-opus-5-5', aiAuto: false, settingsVersion: 2
   };
   const SKEY = 'snapidian.settings';
   let S = { ...DEFAULTS };
-  try { Object.assign(S, JSON.parse(localStorage.getItem(SKEY) || '{}')); } catch (e) {}
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SKEY) || '{}') || {}; } catch (e) {}
+  Object.assign(S, saved);
+  // Settings saved before version 2 stored AI organize as 'off' only because that was the old default;
+  // move them to the new default, Chrome's built-in AI, once. (Check what was saved, not the merged
+  // defaults, which already carry version 2.)
+  if (Object.keys(saved).length && !(saved.settingsVersion >= 2)) {
+    if (S.aiProvider === 'off') S.aiProvider = 'chrome';
+    S.settingsVersion = 2;
+    try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch (e) {}
+  }
   const saveSettings = () => { try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch (e) {} };
 
   // The Claude key is kept apart from the other settings and never leaves this browser except to call the Claude API.
@@ -168,7 +178,7 @@
       };
       bind('.f-title', 'title'); bind('.f-note', 'note'); bind('.f-tags', 'tags'); bind('.f-ocr', 'ocr'); bind('.f-summary', 'summary');
       el.querySelector('.sum-box').hidden = !(c.summary || '').trim();
-      el.querySelector('.a-ai').hidden = S.aiProvider === 'off';
+      el.querySelector('.a-ai').hidden = !aiReady();
       queueMicrotask(() => paintOcr(c.id));
       if (c.ocr) el.querySelector('.ocr-box').open = true;
       return el;
@@ -180,8 +190,8 @@
     $('#count').textContent = t('app.count', { n: caps.length, p: pending });
     $('#saveAllBtn').disabled = pending === 0;
     $('#clearDoneBtn').hidden = pending === caps.length;
-    $('#aiAllBtn').hidden = S.aiProvider === 'off' || pending === 0;
-    $('#aiTip').hidden = S.aiProvider !== 'off' || caps.length === 0;
+    $('#aiAllBtn').hidden = !aiReady() || pending === 0;
+    $('#aiTip').hidden = aiReady() || caps.length === 0;
   }
 
   // ---------------- saving ----------------

@@ -3,19 +3,19 @@
 🌐 https://snapidian.onepointzeroone.org/ · App: https://snapidian.onepointzeroone.org/app/
 
 **Capture Anything. Save to Your Knowledge.**
-讓手機截圖成為 Obsidian 第二大腦的一部分。
+讓手機截圖成為你第二大腦的一部分。
 
 Snapidian 是一個網站 + 可安裝的 App（PWA），支援繁體中文 / English。
-把截圖加上標題、想法、標籤與 OCR 文字，一鍵存成 Obsidian 筆記。
+把截圖加上標題、想法、標籤與 OCR 文字，一鍵存成 Markdown 筆記。
 
 ## 功能 Features
 
 - 📥 **匯入截圖**：點選、拖放、貼上（Ctrl/⌘+V），Android 安裝後可從相簿「分享」到 Snapidian（Web Share Target）
 - 🔤 **OCR**：瀏覽器本機辨識（tesseract.js），支援繁中 / 簡中 / 英文 / 日文
-- 📝 **Obsidian 格式**：YAML frontmatter、tags、`![[附件]]` 內嵌圖片
+- 📝 **Markdown 筆記**：YAML frontmatter、tags、內嵌圖片
 - 💾 **三種儲存方式**
-  - 直接寫入 Vault 資料夾（桌面版 Chrome / Edge，File System Access API），寫完可用 `obsidian://` 開啟
-  - 系統分享（手機分享給 Obsidian 或其他 App）
+  - 直接寫入 Vault 資料夾（桌面版 Chrome / Edge，File System Access API），寫完可直接開啟筆記
+  - 系統分享（手機分享給筆記 App）
   - 下載 ZIP（含資料夾結構，解壓到 Vault 即可）
 - ✨ **AI 整理（選用，預設關閉）**：自動產生標題、摘要、標籤並擷取文字
   - **Chrome 內建 AI**：桌面版 Chrome 的 Gemini Nano（Prompt API），在本機執行、免費
@@ -30,7 +30,7 @@ Snapidian 是一個網站 + 可安裝的 App（PWA），支援繁體中文 / Eng
 index.html            官網 Landing page
 app/                  Snapidian App
   index.html          App 介面
-  app.js              主要邏輯（匯入、編輯、OCR、存入 Obsidian）
+  app.js              主要邏輯（匯入、編輯、OCR、存進筆記庫）
   db.js               IndexedDB 存取（App 與 Service Worker 共用）
   zip.js              無相依的 ZIP 產生器
   app.css
