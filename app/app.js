@@ -23,7 +23,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-19';
+  const APP_VERSION = '2026.11.25-20';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -523,10 +523,51 @@
   const notReadyReason = p => t(p === 'off' ? 'app.ai.err.off' : p === 'chrome' ? 'app.ai.err.chrome_unsupported' : p === 'custom' && !S.customBaseUrl ? 'app.ai.err.no_base_url' : !modelFor(p) ? 'app.ai.err.no_model' : 'app.ai.err.no_key');
   // Take the user straight to where it's fixed, with the reason shown there (the dialog covers the toast).
   function askToSetUp(p) {
+    // A cloud service only needs its key / model / URL: ask for just those in a small window.
+    if (SnapAI.PROVIDERS[p]) { openAiSetup(p, effectiveProvider() === p ? null : S.aiProvider); return; }
     const why = notReadyReason(p);
     toast(why);
     if (!$('#settings').open) { $('#settingsBtn').click(); $('#s-aiNeed').textContent = why; $('#s-aiNeed').hidden = false; }
   }
+
+  // Small window to set up one AI service (key, model, and URL for "other service").
+  const PROVIDER_NAMES = { claude: 'Claude', openai: 'ChatGPT', gemini: 'Gemini' };
+  const providerName = p => PROVIDER_NAMES[p] || t('app.ai.switch.custom');
+  let setupFor = null, setupRevertTo = null;
+  function openAiSetup(p, revertTo) {
+    const meta = SnapAI.PROVIDERS[p];
+    setupFor = p; setupRevertTo = revertTo;
+    $('#as-title').textContent = t('app.ai.setup.title', { n: providerName(p) });
+    $('#as-hint').textContent = t('set.ai.hint.' + p);
+    $('#as-error').hidden = true;
+    $('#as-baseRow').hidden = !meta.baseUrl;
+    $('#as-base').value = S.customBaseUrl || '';
+    $('#as-key').value = getKey(p);
+    $('#as-key').placeholder = meta.keyHint || t('set.ai.keyOptional');
+    $('#as-keyHint').textContent = t('set.ai.keyHint.' + p);
+    $('#as-model').value = modelFor(p);
+    $('#as-models').replaceChildren(...meta.models.map(m => Object.assign(document.createElement('option'), { value: m })));
+    $('#aiSetup').showModal();
+    (meta.baseUrl && !S.customBaseUrl ? $('#as-base') : $('#as-key')).focus();
+  }
+  $('#as-ok').addEventListener('click', e => {
+    const p = setupFor, meta = SnapAI.PROVIDERS[p];
+    const key = $('#as-key').value.trim(), model = $('#as-model').value.trim(), base = $('#as-base').value.trim().replace(/\/+$/, '');
+    const missing = meta.baseUrl && !base ? 'app.ai.err.no_base_url' : meta.key && !key ? 'app.ai.err.no_key' : !model ? 'app.ai.err.no_model' : null;
+    if (missing) { e.preventDefault(); $('#as-error').textContent = t(missing + '.here'); $('#as-error').hidden = false; return; }
+    setKey(p, key);
+    S.models[p] = model;
+    if (meta.baseUrl) S.customBaseUrl = base;
+    S.aiProvider = p;
+    setupRevertTo = null;
+    saveSettings();
+  });
+  $('#aiSetup').addEventListener('close', () => {
+    if ($('#aiSetup').returnValue === 'ok' && S.aiProvider === setupFor) toast(t('app.ai.switched', { n: providerName(setupFor) }));
+    else if (setupRevertTo) { S.aiProvider = setupRevertTo; saveSettings(); } // cancelled: go back to the previous AI
+    setupFor = setupRevertTo = null;
+    render();
+  });
 
   async function runAi(c, btn) {
     if (aiBusy.has(c.id)) return;
@@ -611,11 +652,13 @@
   $('#list').addEventListener('change', e => {
     const sel = e.target.closest('.a-ai-switch');
     if (!sel) return;
-    S.aiProvider = sel.value;
+    const p = sel.value;
+    if (!providerReady(p) && SnapAI.PROVIDERS[p]) { openAiSetup(p, S.aiProvider); return; }
+    S.aiProvider = p;
     saveSettings();
     render();
-    if (providerReady(sel.value)) toast(t('app.ai.switched', { n: sel.options[sel.selectedIndex].textContent }));
-    else askToSetUp(sel.value);
+    if (providerReady(p)) toast(t('app.ai.switched', { n: sel.options[sel.selectedIndex].textContent }));
+    else askToSetUp(p);
   });
   $('#aiAllBtn').addEventListener('click', () => aiMany(caps.filter(c => !c.saved && !(c.summary || '').trim())));
   $('#clearDoneBtn').addEventListener('click', async () => {
