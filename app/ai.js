@@ -228,6 +228,7 @@
     // Chrome also fires a 'downloadprogress' event (100%) when the model is already on the device, so only
     // report progress when a download is actually needed.
     const downloading = st.state === 'downloadable' || st.state === 'downloading';
+    if (downloading && onProgress) onProgress(0); // show "downloading" right away, before Chrome's first progress event
     const session = await LM().create({
       ...st.opts,
       monitor(m) { if (downloading) m.addEventListener('downloadprogress', e => onProgress && onProgress(e.loaded)); }

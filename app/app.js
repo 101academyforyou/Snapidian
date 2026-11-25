@@ -23,7 +23,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-18';
+  const APP_VERSION = '2026.11.25-19';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -213,6 +213,9 @@
       el.querySelector('.sum-box').hidden = !(c.summary || '').trim();
       // Always offered; if AI can't run yet, clicking explains what's missing and opens Settings.
       el.querySelector('.a-ai').hidden = false;
+      // Quick switch: shows the service AI organize will actually use (a chosen service that isn't set up yet
+      // falls back to Chrome's built-in AI).
+      el.querySelector('.a-ai-switch').value = effectiveProvider() || (S.aiProvider === 'off' ? 'chrome' : S.aiProvider);
       queueMicrotask(() => paintOcr(c.id));
       if (c.ocr) el.querySelector('.ocr-box').open = true;
       return el;
@@ -517,16 +520,17 @@
     }
     return t('app.ai.err.api', { e: e.message || String(e) });
   }
+  const notReadyReason = p => t(p === 'off' ? 'app.ai.err.off' : p === 'chrome' ? 'app.ai.err.chrome_unsupported' : p === 'custom' && !S.customBaseUrl ? 'app.ai.err.no_base_url' : !modelFor(p) ? 'app.ai.err.no_model' : 'app.ai.err.no_key');
+  // Take the user straight to where it's fixed, with the reason shown there (the dialog covers the toast).
+  function askToSetUp(p) {
+    const why = notReadyReason(p);
+    toast(why);
+    if (!$('#settings').open) { $('#settingsBtn').click(); $('#s-aiNeed').textContent = why; $('#s-aiNeed').hidden = false; }
+  }
+
   async function runAi(c, btn) {
     if (aiBusy.has(c.id)) return;
-    if (!aiReady()) {
-      const p = S.aiProvider;
-      const why = t(p === 'off' ? 'app.ai.err.off' : p === 'chrome' ? 'app.ai.err.chrome_unsupported' : p === 'custom' && !S.customBaseUrl ? 'app.ai.err.no_base_url' : !modelFor(p) ? 'app.ai.err.no_model' : 'app.ai.err.no_key');
-      toast(why);
-      // Take the user straight to where it's fixed, with the reason shown there (the dialog covers the toast).
-      if (!$('#settings').open) { $('#settingsBtn').click(); $('#s-aiNeed').textContent = why; $('#s-aiNeed').hidden = false; }
-      return false;
-    }
+    if (!aiReady()) { askToSetUp(S.aiProvider); return false; }
     aiBusy.add(c.id);
     btn = btn || document.querySelector(`.cap[data-id="${c.id}"] .a-ai`);
     const label = btn && btn.innerHTML;
@@ -602,6 +606,16 @@
 
   $('#saveAllBtn').addEventListener('click', async () => {
     try { await exportNotes(caps.filter(c => !c.saved)); } catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
+  });
+  // Switching the AI service from a card applies to every card.
+  $('#list').addEventListener('change', e => {
+    const sel = e.target.closest('.a-ai-switch');
+    if (!sel) return;
+    S.aiProvider = sel.value;
+    saveSettings();
+    render();
+    if (providerReady(sel.value)) toast(t('app.ai.switched', { n: sel.options[sel.selectedIndex].textContent }));
+    else askToSetUp(sel.value);
   });
   $('#aiAllBtn').addEventListener('click', () => aiMany(caps.filter(c => !c.saved && !(c.summary || '').trim())));
   $('#clearDoneBtn').addEventListener('click', async () => {
