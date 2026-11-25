@@ -147,9 +147,23 @@
     }
   }
 
+  // Chrome only downloads its model right after a user gesture, so call this from a click (e.g. when the
+  // user turns on automatic organizing). Later automatic runs then find the model ready.
+  async function warmUp(lang, onProgress) {
+    const st = await chromeStatus(lang);
+    if (st.state !== 'downloadable' && st.state !== 'downloading') return st.state;
+    const session = await LM().create({
+      ...st.opts,
+      monitor(m) { m.addEventListener('downloadprogress', e => onProgress && onProgress(e.loaded)); }
+    });
+    session.destroy?.();
+    return 'available';
+  }
+
   g.SnapAI = {
     AIError,
     chromeStatus,
+    warmUp,
     hasChrome: () => !!LM(),
     organize(provider, args) {
       if (provider === 'claude') return claude(args);
