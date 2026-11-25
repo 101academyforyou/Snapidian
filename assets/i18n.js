@@ -227,7 +227,10 @@
       // ---------- AI ----------
       'app.ai': 'AI 整理',
       'app.ai.running': 'AI 整理中…',
-      'app.ai.download': '下載 AI 模型… {p}%',
+      'app.ai.download': '下載 AI 模型（第一次）… {p}%',
+      'app.ai.switch': '切換 AI 模型',
+      'app.ai.switch.custom': '其他服務',
+      'app.ai.switched': '已切換為 {n}',
       'app.ai.done': 'AI 整理完成',
       'app.ai.allBtn': '全部 AI 整理',
       'app.autoAi': '上傳後自動 AI 整理',
@@ -497,7 +500,10 @@
 
       'app.ai': 'AI organize',
       'app.ai.running': 'Organizing…',
-      'app.ai.download': 'Downloading AI model… {p}%',
+      'app.ai.download': 'Downloading AI model (first time)… {p}%',
+      'app.ai.switch': 'Switch AI model',
+      'app.ai.switch.custom': 'Other service',
+      'app.ai.switched': 'Switched to {n}',
       'app.ai.done': 'AI organize finished',
       'app.ai.allBtn': 'AI organize all',
       'app.autoAi': 'Organize with AI automatically after upload',
