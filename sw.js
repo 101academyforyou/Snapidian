@@ -1,10 +1,10 @@
 /* Snapidian service worker: offline shell + Web Share Target */
 importScripts('app/db.js');
-const CACHE = 'snapidian-v2';
+const CACHE = 'snapidian-v3';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest',
-  'assets/site.css', 'assets/i18n.js', 'assets/icon.svg', 'assets/icon-192.png', 'assets/icon-512.png',
-  'app/', 'app/index.html', 'app/app.css', 'app/app.js', 'app/db.js', 'app/zip.js'
+  'assets/site.css', 'assets/guide.css', 'assets/i18n.js', 'assets/icon.svg', 'assets/icon-192.png', 'assets/icon-512.png',
+  'iphone/', 'iphone/index.html', 'app/', 'app/index.html', 'app/app.css', 'app/app.js', 'app/db.js', 'app/zip.js'
 ];
 
 self.addEventListener('install', e => {
