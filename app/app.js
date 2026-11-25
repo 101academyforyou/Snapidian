@@ -23,17 +23,27 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-9';
+  const APP_VERSION = '2026.11.25-12';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
     method: 'auto', vault: '', notes: 'Snapidian', attach: 'Snapidian/attachments',
     prefix: 'Snap-', tags: 'snapidian', incOcr: true, ocrLang: 'chi_tra+eng',
-    aiProvider: 'off', claudeModel: 'claude-opus-5-5', aiAuto: false
+    aiProvider: 'chrome', claudeModel: 'claude-opus-5-5', aiAuto: false, settingsVersion: 2
   };
   const SKEY = 'snapidian.settings';
   let S = { ...DEFAULTS };
-  try { Object.assign(S, JSON.parse(localStorage.getItem(SKEY) || '{}')); } catch (e) {}
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SKEY) || '{}') || {}; } catch (e) {}
+  Object.assign(S, saved);
+  // Settings saved before version 2 stored AI organize as 'off' only because that was the old default;
+  // move them to the new default, Chrome's built-in AI, once. (Check what was saved, not the merged
+  // defaults, which already carry version 2.)
+  if (Object.keys(saved).length && !(saved.settingsVersion >= 2)) {
+    if (S.aiProvider === 'off') S.aiProvider = 'chrome';
+    S.settingsVersion = 2;
+    try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch (e) {}
+  }
   const saveSettings = () => { try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch (e) {} };
 
   // The Claude key is kept apart from the other settings and never leaves this browser except to call the Claude API.
@@ -88,14 +98,17 @@
   function buildMarkdown(c, imgPath, { dataUri } = {}) {
     const d = new Date(c.createdAt);
     const tags = parseTags(S.tags + ' ' + c.tags);
-    const title = c.title.trim() || `${t('app.untitled')} ${fmtTime(c.takenAt || c.createdAt)}`;
+    // Only what the user (or AI organize) wrote goes into the note body: no generated heading or time
+    // line. Times stay in the frontmatter.
+    const title = c.title.trim();
     const lines = ['---'];
     if (c.takenAt) lines.push(`taken: ${isoLocal(new Date(c.takenAt))}`);
     lines.push(`created: ${isoLocal(d)}`, 'source: Snapidian');
     if (tags.length) { lines.push('tags:'); tags.forEach(x => lines.push(`  - ${x}`)); }
     const embed = dataUri ? `![${title.replace(/[\[\]]/g, '')}](${dataUri})` : `![[${imgPath}]]`;
-    lines.push('---', '', `# ${title}`, '', embed, '');
-    lines.push(`> ${c.takenAt ? t('md.taken', { d: fmtTime(c.takenAt) }) : t('md.added', { d: fmtTime(c.createdAt) })}`, '');
+    lines.push('---', '');
+    if (title) lines.push(`# ${title}`, '');
+    lines.push(embed, '');
     if ((c.summary || '').trim()) lines.push(`## ${t('md.summary')}`, c.summary.trim(), '');
     if (c.note.trim()) lines.push(`## ${t('md.note')}`, c.note.trim(), '');
     if (S.incOcr && c.ocr.trim()) lines.push(`## ${t('md.ocr')}`, ...c.ocr.trim().split('\n').map(l => '> ' + l), '');
@@ -168,7 +181,7 @@
       };
       bind('.f-title', 'title'); bind('.f-note', 'note'); bind('.f-tags', 'tags'); bind('.f-ocr', 'ocr'); bind('.f-summary', 'summary');
       el.querySelector('.sum-box').hidden = !(c.summary || '').trim();
-      el.querySelector('.a-ai').hidden = S.aiProvider === 'off';
+      el.querySelector('.a-ai').hidden = !aiReady();
       queueMicrotask(() => paintOcr(c.id));
       if (c.ocr) el.querySelector('.ocr-box').open = true;
       return el;
@@ -180,8 +193,8 @@
     $('#count').textContent = t('app.count', { n: caps.length, p: pending });
     $('#saveAllBtn').disabled = pending === 0;
     $('#clearDoneBtn').hidden = pending === caps.length;
-    $('#aiAllBtn').hidden = S.aiProvider === 'off' || pending === 0;
-    $('#aiTip').hidden = S.aiProvider !== 'off' || caps.length === 0;
+    $('#aiAllBtn').hidden = !aiReady() || pending === 0;
+    $('#aiTip').hidden = aiReady() || caps.length === 0;
   }
 
   // ---------------- saving ----------------
@@ -243,6 +256,27 @@
     a.download = filename;
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  }
+
+  const toDataUri = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(blob); });
+
+  // Self-contained Markdown: each note carries its image inside as a data URI. One note downloads as
+  // a .md file; several go into one ZIP so the browser doesn't ask about a burst of downloads.
+  async function downloadMarkdown(list) {
+    if (!list.length) return;
+    const notes = [];
+    const used = new Set();
+    for (const c of list) {
+      let name = names(c).note, i = 1;
+      while (used.has(name)) name = names(c).note.replace(/\.md$/, `-${i++}.md`);
+      used.add(name);
+      notes.push({ path: name, data: buildMarkdown(c, null, { dataUri: await toDataUri(c.blob) }) });
+    }
+    if (notes.length === 1) downloadFile(new Blob([notes[0].data], { type: 'text/markdown' }), notes[0].path);
+    else downloadFile(makeZip(notes), `Snapidian-${stamp(new Date())}.zip`);
+    for (const c of list) await markSaved(c);
+    render();
+    toast(notes.length === 1 ? t('app.mdDownloaded') : t('app.mdZipDownloaded', { n: notes.length }));
   }
 
   async function downloadZip(list) {
@@ -487,11 +521,7 @@
       e.preventDefault(); // the retry link sits inside <summary>; don't toggle the box
       c.ocrState = undefined; queueOcr(c);
     } else if (e.target.closest('.a-md')) {
-      // One self-contained file: the image is stored inside the note as a data URI.
-      const dataUri = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(c.blob); });
-      downloadFile(new Blob([buildMarkdown(c, null, { dataUri })], { type: 'text/markdown' }), names(c).note);
-      await markSaved(c); render(); // count it as done, like saving
-      toast(t('app.mdDownloaded'));
+      await downloadMarkdown([c]);
     } else if (e.target.closest('.a-del')) {
       if (!confirm(t('app.confirmDelete'))) return;
       await SnapDB.del(c.id); await load();
@@ -505,7 +535,7 @@
   });
 
   $('#saveAllBtn').addEventListener('click', async () => {
-    try { await save(caps.filter(c => !c.saved)); } catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
+    try { await downloadMarkdown(caps.filter(c => !c.saved)); } catch (err) { toast(t('app.error', { e: `${err.name}: ${err.message}` })); }
   });
   $('#aiAllBtn').addEventListener('click', () => aiMany(caps.filter(c => !c.saved && !(c.summary || '').trim())));
   $('#clearDoneBtn').addEventListener('click', async () => {

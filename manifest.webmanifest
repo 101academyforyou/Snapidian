@@ -1,7 +1,7 @@
 {
   "name": "Snapidian",
   "short_name": "Snapidian",
-  "description": "Capture Anything. Save to Your Knowledge. 讓手機截圖成為 Obsidian 第二大腦的一部分",
+  "description": "Capture Anything. Save to Your Knowledge. 讓手機截圖成為你第二大腦的一部分",
   "id": "./app/",
   "start_url": "./app/",
   "scope": "./",
