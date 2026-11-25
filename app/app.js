@@ -23,7 +23,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-16';
+  const APP_VERSION = '2026.11.25-17';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -197,7 +197,8 @@
       };
       bind('.f-title', 'title'); bind('.f-note', 'note'); bind('.f-tags', 'tags'); bind('.f-ocr', 'ocr'); bind('.f-summary', 'summary');
       el.querySelector('.sum-box').hidden = !(c.summary || '').trim();
-      el.querySelector('.a-ai').hidden = !aiReady();
+      // Always offered; if AI can't run yet, clicking explains what's missing and opens Settings.
+      el.querySelector('.a-ai').hidden = false;
       queueMicrotask(() => paintOcr(c.id));
       if (c.ocr) el.querySelector('.ocr-box').open = true;
       return el;
@@ -209,7 +210,7 @@
     $('#count').textContent = t('app.count', { n: caps.length, p: pending });
     $('#saveAllBtn').disabled = pending === 0;
     $('#clearDoneBtn').hidden = pending === caps.length;
-    $('#aiAllBtn').hidden = !aiReady() || pending === 0;
+    $('#aiAllBtn').hidden = pending === 0;
     $('#aiTip').hidden = aiReady() || caps.length === 0;
     $('#autoAiRow').hidden = !aiReady();
     $('#autoAi').checked = !!S.aiAuto;
@@ -506,7 +507,10 @@
     if (aiBusy.has(c.id)) return;
     if (!aiReady()) {
       const p = S.aiProvider;
-      toast(t(p === 'off' ? 'app.ai.err.off' : p === 'chrome' ? 'app.ai.err.chrome_unsupported' : p === 'custom' && !S.customBaseUrl ? 'app.ai.err.no_base_url' : !modelFor(p) ? 'app.ai.err.no_model' : 'app.ai.err.no_key'));
+      const why = t(p === 'off' ? 'app.ai.err.off' : p === 'chrome' ? 'app.ai.err.chrome_unsupported' : p === 'custom' && !S.customBaseUrl ? 'app.ai.err.no_base_url' : !modelFor(p) ? 'app.ai.err.no_model' : 'app.ai.err.no_key');
+      toast(why);
+      // Take the user straight to where it's fixed, with the reason shown there (the dialog covers the toast).
+      if (!$('#settings').open) { $('#settingsBtn').click(); $('#s-aiNeed').textContent = why; $('#s-aiNeed').hidden = false; }
       return false;
     }
     aiBusy.add(c.id);
@@ -659,6 +663,7 @@
   });
   $('#s-lang').addEventListener('change', e => I18N.setLang(e.target.value));
   dlg.addEventListener('close', () => {
+    $('#s-aiNeed').hidden = true;
     fields.forEach(k => { S[k] = $('#s-' + k).value.trim(); });
     S.notes = cleanFolder(S.notes); S.attach = cleanFolder(S.attach);
     S.incOcr = $('#s-incOcr').checked;
