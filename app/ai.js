@@ -101,6 +101,100 @@
     return clean(JSON.parse(textBlock.text));
   }
 
+  // ---------------- ChatGPT, Gemini and other services (plain HTTPS with the user's own key) ----------------
+  async function httpJson(url, init) {
+    let res;
+    try { res = await fetch(url, init); } catch (e) { throw new AIError('network'); }
+    let body = null;
+    try { body = await res.json(); } catch (e) { /* not JSON */ }
+    if (!res.ok) {
+      const err = body && (body.error || (Array.isArray(body) && body[0] && body[0].error));
+      const msg = (err && (err.message || err.status)) || res.statusText || '';
+      if (res.status === 401 || res.status === 403) throw new AIError('bad_key');
+      if (res.status === 429) throw new AIError('rate_limit');
+      throw new AIError('api', `${res.status} ${msg}`.trim());
+    }
+    return body;
+  }
+  const isBadRequest = e => e instanceof AIError && e.code === 'api' && /^400\b/.test(e.message);
+
+  // Models sometimes wrap JSON in ```json fences or a sentence; take the outermost {...}.
+  function parseJsonText(text) {
+    const t = String(text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
+    const i = t.indexOf('{'), j = t.lastIndexOf('}');
+    if (i < 0 || j < i) throw new AIError('api', 'no JSON in response');
+    return JSON.parse(t.slice(i, j + 1));
+  }
+
+  // OpenAI Chat Completions — also spoken by OpenRouter, Groq, DeepSeek, Mistral, Ollama, LM Studio and others.
+  async function openaiCompatible({ blob, ocr, lang, apiKey, model, baseUrl }) {
+    if (!model) throw new AIError('no_model');
+    const custom = !!baseUrl;
+    if (!custom && !apiKey) throw new AIError('no_key');
+    const data = await toBase64(await prepareImage(blob));
+    const url = (baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '') + '/chat/completions';
+    const headers = { 'content-type': 'application/json' };
+    if (apiKey) headers.authorization = 'Bearer ' + apiKey;
+    const base = {
+      model,
+      messages: [{ role: 'user', content: [
+        { type: 'text', text: instructions(lang, ocr) + '\nReply with JSON only.' },
+        { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + data } }
+      ] }]
+    };
+    const withSchema = { ...base, response_format: { type: 'json_schema', json_schema: { name: 'snapidian_note', strict: true, schema: SCHEMA } } };
+    let res;
+    try {
+      res = await httpJson(url, { method: 'POST', headers, body: JSON.stringify(withSchema) });
+    } catch (e) {
+      // Some compatible services reject response_format; ask again relying on the instructions alone.
+      if (!custom || !isBadRequest(e)) throw e;
+      res = await httpJson(url, { method: 'POST', headers, body: JSON.stringify(base) });
+    }
+    const choice = res && res.choices && res.choices[0];
+    if (!choice) throw new AIError('api', 'empty response');
+    if (choice.finish_reason === 'content_filter' || (choice.message && choice.message.refusal)) throw new AIError('refusal');
+    const content = choice.message && choice.message.content;
+    const text = Array.isArray(content) ? content.map(p => p.text || '').join('') : content;
+    if (!text) throw new AIError('api', 'empty response');
+    return clean(parseJsonText(text));
+  }
+
+  // Google Gemini API (generateContent)
+  async function gemini({ blob, ocr, lang, apiKey, model }) {
+    if (!apiKey) throw new AIError('no_key');
+    if (!model) throw new AIError('no_model');
+    const data = await toBase64(await prepareImage(blob));
+    const url = `https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(model)}:generateContent`;
+    const headers = { 'content-type': 'application/json', 'x-goog-api-key': apiKey };
+    const contents = [{ role: 'user', parts: [
+      { inlineData: { mimeType: 'image/jpeg', data } },
+      { text: instructions(lang, ocr) + '\nReply with JSON only.' }
+    ] }];
+    let res;
+    try {
+      res = await httpJson(url, { method: 'POST', headers, body: JSON.stringify({ contents, generationConfig: { responseMimeType: 'application/json', responseJsonSchema: SCHEMA } }) });
+    } catch (e) {
+      if (!isBadRequest(e)) throw e;
+      res = await httpJson(url, { method: 'POST', headers, body: JSON.stringify({ contents }) });
+    }
+    if (res && res.promptFeedback && res.promptFeedback.blockReason) throw new AIError('refusal');
+    const cand = res && res.candidates && res.candidates[0];
+    if (!cand) throw new AIError('api', 'empty response');
+    if (/SAFETY|PROHIBITED|BLOCKLIST/.test(cand.finishReason || '')) throw new AIError('refusal');
+    const text = ((cand.content && cand.content.parts) || []).map(p => p.text || '').join('');
+    if (!text) throw new AIError('api', 'empty response');
+    return clean(parseJsonText(text));
+  }
+
+  // What each service needs in Settings. Model names are suggestions; users can type any model.
+  const PROVIDERS = {
+    claude: { key: true, model: 'claude-opus-5-5', models: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'], keyHint: 'sk-ant-…' },
+    openai: { key: true, model: 'gpt-5.5', models: ['gpt-5.5'], keyHint: 'sk-…' },
+    gemini: { key: true, model: 'gemini-3.8-flash', models: ['gemini-3.8-flash'], keyHint: 'AIza…' },
+    custom: { key: false, baseUrl: true, model: '', models: [], keyHint: '' }
+  };
+
   // ---------------- Chrome built-in AI (Prompt API, Gemini Nano on device) ----------------
   const LM = () => g.LanguageModel;
 
@@ -168,9 +262,13 @@
     chromeStatus,
     warmUp,
     hasChrome: () => !!LM(),
+    PROVIDERS,
     organize(provider, args) {
       if (provider === 'claude') return claude(args);
       if (provider === 'chrome') return chrome(args);
+      if (provider === 'openai') return openaiCompatible({ ...args, baseUrl: '' });
+      if (provider === 'custom') return args.baseUrl ? openaiCompatible(args) : Promise.reject(new AIError('no_base_url'));
+      if (provider === 'gemini') return gemini(args);
       return Promise.reject(new AIError('off'));
     }
   };
