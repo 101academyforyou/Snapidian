@@ -23,7 +23,7 @@
   const $ = s => document.querySelector(s);
 
   // Bump on every release so users (and support) can tell which version is running.
-  const APP_VERSION = '2026.11.25-27';
+  const APP_VERSION = '2026.11.26-28';
 
   // ---------------- settings ----------------
   const DEFAULTS = {
@@ -506,7 +506,7 @@
     ocrProgress = p => { ocrBusy.set(c.id, p); paintOcr(c.id); };
     try {
       let data;
-      if (NATIVE) data = { text: await guarded(SnapNative.recognizeText(c.blob)) }; // Apple Vision, on device
+      if (NATIVE && SnapNative.hasVision()) data = { text: await guarded(SnapNative.recognizeText(c.blob)) }; // Apple Vision, on device
       else {
         const w = await guarded(getWorker());
         ({ data } = await guarded(w.recognize(c.blob)));

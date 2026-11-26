@@ -53,5 +53,8 @@
     return true;
   }
 
-  g.SnapNative = { isNative, recognizeText, aiStatus, organizeText, shareFiles };
+  // False if the app's own plugin isn't registered; the web app then falls back to Tesseract.js.
+  const hasVision = () => !!plugin('SnapidianNative');
+
+  g.SnapNative = { isNative, hasVision, recognizeText, aiStatus, organizeText, shareFiles };
 })(window);
